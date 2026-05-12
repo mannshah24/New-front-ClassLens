@@ -1,0 +1,58 @@
+name: classlens
+description: "A new Flutter project."
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.8.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  lottie: ^3.1.2
+  http: ^1.2.1
+  english_words: ^4.0.0
+  provider: ^6.1.5
+  google_fonts: ^6.3.0
+  shared_preferences: ^2.5.3
+  permission_handler: ^11.3.1
+  image_picker: ^1.1.2
+  dotted_border: ^2.1.0
+  flutter_riverpod: ^3.0.1
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  path_provider: ^2.0.15
+  intl: ^0.20.2
+  device_preview: ^1.1.0
+  flutter_local_notifications: ^19.5.0
+  timezone: ^0.10.1
+  timeago: ^3.7.1
+  flutter_dotenv: ^6.0.0
+  custom_refresh_indicator: ^4.0.1
+  connectivity_plus: ^7.0.0
+  google_mlkit_face_detection: ^0.13.1
+  percent_indicator: ^4.2.5
+  firebase_core: ^4.2.1
+  firebase_messaging: ^16.0.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  hive_generator: ^2.0.0
+  build_runner: ^2.4.7
+
+flutter:
+  uses-material-design: true
+  assets:
+    - "assets/animations/"
+    - .env.dev
+    - .env.prod
+  fonts:
+    - family: Lato
+      fonts:
+        - asset: fonts/Lato-Regular.ttf
+        - asset: fonts/Lato-Italic.ttf
+          style: italic
+        - asset: fonts/Lato-Bold.ttf
+          weight: 700

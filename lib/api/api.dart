@@ -9,16 +9,12 @@ import 'package:classlens/data_models/departments.dart';
 import 'package:classlens/data_models/task_status.dart';
 import 'package:classlens/data_models/student_list.dart';
 import 'package:classlens/global/config.dart';
-<<<<<<< HEAD
 import '../data_models/present_absentees_student.dart';
-=======
->>>>>>> 05feae35b47784663b5cb3855d02b9651cea23ed
 import '../global/global.dart';
 
 class ApiServices {
   static final String _baseUrl = AppConfig.baseUrl;
 
-<<<<<<< HEAD
   static List<Map<String, dynamic>> _decodeMapList(dynamic value) {
     if (value is List) {
       return value
@@ -32,11 +28,6 @@ class ApiServices {
   static Future<List<Departments>> getDepartments() async {
     print("base url is $_baseUrl");
 
-=======
-  static Future<List<Departments>> getDepartments() async {
-    print("base url is $_baseUrl");
-
->>>>>>> 05feae35b47784663b5cb3855d02b9651cea23ed
     String apiUrl = '$_baseUrl/getDepartments/';
 
     try {
@@ -264,16 +255,13 @@ class ApiServices {
   }
 
   static Future<Map<String, dynamic>> markAttendance({
-    required final File imageFile,
+    required final List<File> imageFiles,
     required final String departmentName,
     required final int semester,
     required final int year,
     required final String subject,
     required final int subjectID,
-<<<<<<< HEAD
     final int? divisionID,
-=======
->>>>>>> 05feae35b47784663b5cb3855d02b9651cea23ed
   }) async {
     String endpoint = '$_baseUrl/markAttendance';
     final url = Uri.parse(endpoint);
@@ -287,34 +275,21 @@ class ApiServices {
       request.fields['subject'] = subject;
       request.fields["teacherID"] = userID.toString();
       request.fields["subjectID"] = subjectID.toString();
-<<<<<<< HEAD
       if (divisionID != null) {
         request.fields['divisionID'] = divisionID.toString();
       }
       print(subjectID);
       print(subject);
 
-      for(var image in imageFiles) {
+      for (final image in imageFiles) {
         request.files.add(
-            await http.MultipartFile.fromPath(
-                'photo',
-                image.path
-            )
+          await http.MultipartFile.fromPath('photo', image.path),
         );
       }
-=======
-      print(subjectID);
-      print(subject);
-
-      request.files.add(
-        await http.MultipartFile.fromPath('photo', imageFile.path),
-      );
->>>>>>> 05feae35b47784663b5cb3855d02b9651cea23ed
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
 
-<<<<<<< HEAD
       if (response.statusCode == 200 || response.statusCode==202) {
         final responseData = json.decode(response.body);
         return {
@@ -336,22 +311,6 @@ class ApiServices {
     } catch (e) {
       print("Exception in markAttendance: ${e.toString()}");
       return {"message": e.toString(), "task_id": null};
-=======
-      print(response);
-
-      if (response.statusCode == 202) {
-        final responseData = json.decode(response.body);
-        return {
-          "message": responseData['message'],
-          "task_id": responseData["task_id"],
-        };
-      } else {
-        throw Exception('Failed to mark attendance: ${response.statusCode}');
-      }
-    } catch (e) {
-      print(e.toString());
-      return {"message": e.toString()};
->>>>>>> 05feae35b47784663b5cb3855d02b9651cea23ed
     }
   }
 
@@ -378,7 +337,6 @@ class ApiServices {
   static Future<List<TeacherSubjects>> getTeacherSubjects({
     required teacherID,
   }) async {
-<<<<<<< HEAD
     try {
       final newEndpoint = Uri.parse('$_baseUrl/teacher/subjects/').replace(
         queryParameters: {'teacher_id': teacherID.toString()},
@@ -408,40 +366,12 @@ class ApiServices {
         return subjects.map((json) => TeacherSubjects.fromJson(json)).toList();
       }
       return Future.value(List<TeacherSubjects>.empty());
-=======
-    String endpoint = '$_baseUrl/getSubjects/';
-    final url = Uri.parse(endpoint);
-
-    const header = {'Content-Type': 'application/json; charset=UTF-8'};
-
-    final body = jsonEncode({'teacher_id': teacherID});
-
-    try {
-      final response = await http.post(url, headers: header, body: body);
-
-      if (response.statusCode == 200) {
-        final jsonData = jsonDecode(response.body);
-        final subjects = jsonData['subjects'];
-
-        if (subjects != null) {
-          final List<dynamic> jsonData = jsonDecode(response.body)['subjects'];
-          return jsonData
-              .map((json) => TeacherSubjects.fromJson(json))
-              .toList();
-        }
-        return Future.value(List<TeacherSubjects>.empty());
-      } else {
-        print("error");
-        return Future.value(List<TeacherSubjects>.empty());
-      }
->>>>>>> 05feae35b47784663b5cb3855d02b9651cea23ed
     } catch (e) {
       print(e.toString());
       return Future.value(List<TeacherSubjects>.empty());
     }
   }
 
-<<<<<<< HEAD
   static Future<List<Map<String, dynamic>>> getDivisions({
     int? departmentId,
     int? year,
@@ -478,8 +408,6 @@ class ApiServices {
     }
   }
 
-=======
->>>>>>> 05feae35b47784663b5cb3855d02b9651cea23ed
   static Future<List<StudentList>> getStudentList({required subjectID}) async {
     String endpoint = '$_baseUrl/students/attendance/';
     final url = Uri.parse(endpoint);
@@ -511,7 +439,6 @@ class ApiServices {
     }
   }
 
-<<<<<<< HEAD
   static Future<List<Map<String, dynamic>>> getStudentSubjectAttendance({
     required int subjectId,
     int? divisionId,
@@ -549,17 +476,19 @@ class ApiServices {
     }
   }
 
-=======
->>>>>>> 05feae35b47784663b5cb3855d02b9651cea23ed
-  static Future<List<AbsenteesStudents>> getAbsentStudents({
+  static Future<List<PresentAbsenteesStudents>> getPresentAbsentStudents({
     required sessionID,
+    required bool isPresent,
   }) async {
-    String endpoint = "$_baseUrl/getAbsenteesList/";
+    String endpoint = "$_baseUrl/getPresentAbsentList/";
     final url = Uri.parse(endpoint);
 
     const header = {'Content-Type': 'application/json; charset=UTF-8'};
 
-    final body = jsonEncode({'class_session_id': sessionID});
+    final body = jsonEncode({
+      'class_session_id': sessionID,
+      'isPresent': isPresent,
+    });
     try {
       final response = await http.post(url, headers: header, body: body);
 
@@ -570,18 +499,9 @@ class ApiServices {
         if (students != null) {
           final List<dynamic> students = jsonBody["students"];
           print(response.body);
-<<<<<<< HEAD
           return students.map((json)=>PresentAbsenteesStudents.fromJson(json)).toList();
-        }
-        else{
-          return Future.value(List<PresentAbsenteesStudents>.empty());
-=======
-          return students
-              .map((json) => AbsenteesStudents.fromJson(json))
-              .toList();
         } else {
-          return Future.value(List<AbsenteesStudents>.empty());
->>>>>>> 05feae35b47784663b5cb3855d02b9651cea23ed
+          return Future.value(List<PresentAbsenteesStudents>.empty());
         }
       } else {
         print(response.body);
@@ -591,6 +511,12 @@ class ApiServices {
       print(e.toString());
       return Future.value(List<PresentAbsenteesStudents>.empty());
     }
+  }
+
+  static Future<List<PresentAbsenteesStudents>> getAbsentStudents({
+    required sessionID,
+  }) {
+    return getPresentAbsentStudents(sessionID: sessionID, isPresent: false);
   }
 
   static Future<bool> changeAttendance({

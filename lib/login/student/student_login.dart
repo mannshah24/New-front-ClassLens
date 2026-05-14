@@ -49,13 +49,7 @@ class _StudentLoginPageState extends State<StudentLogin> {
 
   @override
   Widget build(BuildContext context) {
-<<<<<<< HEAD
-    final screenSize = MediaQuery
-        .of(context)
-        .size;
-=======
     final screenSize = MediaQuery.of(context).size;
->>>>>>> 05feae35b47784663b5cb3855d02b9651cea23ed
 
     return Scaffold(
       backgroundColor: primaryBackgroundColor,
@@ -139,7 +133,6 @@ class _StudentLoginPageState extends State<StudentLogin> {
               keyboardType: TextInputType.number,
               maxLength: 10,
               validator: (value) {
-<<<<<<< HEAD
                 if (value == null || value.isEmpty) {
                   return "Please enter your PRN";
                 }
@@ -147,15 +140,6 @@ class _StudentLoginPageState extends State<StudentLogin> {
                   return "Please enter a valid 10-digit PRN";
                 }
                 return null;
-=======
-              if (value == null || value.isEmpty) {
-                return "Please enter your PRN";
-              }
-              if (!RegExp(r'^\d{10}$').hasMatch(value)) {
-                return "Please enter a valid 10-digit PRN";
-              }
-              return null;
->>>>>>> 05feae35b47784663b5cb3855d02b9651cea23ed
               },
             ),
 
@@ -164,12 +148,8 @@ class _StudentLoginPageState extends State<StudentLogin> {
             // --- Password Text Field ---
             TextFormField(
               controller: _studentPasswordController,
-<<<<<<< HEAD
               decoration: _inputDecoration('Password', Icons.lock_outline)
                   .copyWith(
-=======
-              decoration: _inputDecoration('Password', Icons.lock_outline).copyWith(
->>>>>>> 05feae35b47784663b5cb3855d02b9651cea23ed
                 suffixIcon: IconButton(
                   onPressed: () {
                     setState(() {
@@ -177,12 +157,9 @@ class _StudentLoginPageState extends State<StudentLogin> {
                     });
                   },
                   icon: Icon(
-<<<<<<< HEAD
-                    _obscurePassword ? Icons.visibility_off_outlined : Icons
-                        .visibility_outlined,
-=======
-                    _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
->>>>>>> 05feae35b47784663b5cb3855d02b9651cea23ed
+                    _obscurePassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
                     color: secondaryTextColor,
                   ),
                 ),
@@ -334,11 +311,7 @@ class _StudentLoginPageState extends State<StudentLogin> {
         if (result['status']) {
           _studentPRNController.clear();
           _studentPasswordController.clear();
-<<<<<<< HEAD
 
-=======
-          
->>>>>>> 05feae35b47784663b5cb3855d02b9651cea23ed
           // Save student session to SharedPreferences
           await saveStudentSession(
             rememberMe: isChecked,
@@ -346,25 +319,13 @@ class _StudentLoginPageState extends State<StudentLogin> {
             studentID: result['student_id'],
             prn: result['prn'].toString(),
           );
-<<<<<<< HEAD
 
           // Register FCM token for push notifications
           await registerFCMToken(result['student_id']);
 
-          Navigator.pushAndRemoveUntil(context,
-            MaterialPageRoute(
-                builder: (context) => StudentHomeScreen()
-            ),
-            (route) => false
-=======
-          
-          // Register FCM token for push notifications
-          await registerFCMToken(result['student_id']);
-          
           navigatorWithAnimation(
             context,
             const StudentHomeScreen(),
->>>>>>> 05feae35b47784663b5cb3855d02b9651cea23ed
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -379,7 +340,3 @@ class _StudentLoginPageState extends State<StudentLogin> {
   }
 }
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 05feae35b47784663b5cb3855d02b9651cea23ed

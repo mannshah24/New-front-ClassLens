@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:classlens/api/api.dart';
 import 'package:classlens/data_models/teacher_subjects.dart';
 import 'package:lottie/lottie.dart';
-import 'package:custom_refresh_indicator/custom_refresh_indicator.dart';
+
 
 const Color primaryTextColor = Color(0xFF1A2533);
 const Color secondaryTextColor = Color(0xFF6C757D);

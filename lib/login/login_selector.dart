@@ -64,11 +64,7 @@ class _LoginSelectorState extends State<LoginSelector> {
             MaterialPageRoute(
               builder: (context) => Home(
                 teacherName: teacherName,
-<<<<<<< HEAD
                 teacherID: teacherID!,
-=======
-                teacherID: teacherID,
->>>>>>> 05feae35b47784663b5cb3855d02b9651cea23ed
               ),
             ),
           );

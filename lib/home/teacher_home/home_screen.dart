@@ -513,12 +513,8 @@ class _RecentActivitySectionState extends State<RecentActivitySection> {
 
 
     stats.sort((a, b) {
-      if (a.date == null && b.date == null) return 0;
-      if (a.date == null) return 1;
-      if (b.date == null) return -1;
-      return b.date.compareTo(a.date);
+        return (b.date ?? DateTime(1970)).compareTo(a.date ?? DateTime(1970));
     });
-
 
     setState(() {
       recentStats = stats.take(2).toList();

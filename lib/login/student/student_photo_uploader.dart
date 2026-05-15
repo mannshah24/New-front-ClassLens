@@ -52,43 +52,30 @@ class _StudentPhotoUploaderState extends State<StudentPhotoUploader> {
   bool _isRegistering = false;
 
   Future<void> _pickImage(ImageSource source) async {
-<<<<<<< HEAD
     // Close the bottom sheet first, then wait for the dismiss animation to complete before launching the camera.
     Navigator.of(context).pop();
     await Future.delayed(const Duration(milliseconds: 300));
 
     if (!mounted) return;
 
-=======
-    Navigator.of(context).pop(); // Close the bottom sheet
->>>>>>> 05feae35b47784663b5cb3855d02b9651cea23ed
     try {
       final pickedFile = await _picker.pickImage(
         source: source,
         imageQuality: 80, // Compress image to reduce file size
       );
-<<<<<<< HEAD
 
       if (!mounted) return;
 
-=======
->>>>>>> 05feae35b47784663b5cb3855d02b9651cea23ed
       if (pickedFile != null) {
         setState(() {
           _imageFile = pickedFile;
         });
       }
     } catch (e) {
-<<<<<<< HEAD
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to pick image: $e')),
       );
-=======
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to pick image: $e')));
->>>>>>> 05feae35b47784663b5cb3855d02b9651cea23ed
     }
   }
 
@@ -119,20 +106,12 @@ class _StudentPhotoUploaderState extends State<StudentPhotoUploader> {
     final faceDetector = FaceDetector(options: options);
 
     try {
-<<<<<<< HEAD
       final inputImage = InputImage.fromFilePath(imageFile.path);
       print("Starting image validation...");
 
       final imageSize = await _getImageSize(imageFile);
 
       // imageSize already fetched above alongside bytes reading
-=======
-      print("Starting image validation...");
-      final inputImage = InputImage.fromFilePath(imageFile.path);
-      
-      print("Getting image size...");
-      final imageSize = await _getImageSize(imageFile); 
->>>>>>> 05feae35b47784663b5cb3855d02b9651cea23ed
 
       print("Processing image with FaceDetector...");
       // Add a timeout to prevent infinite hanging

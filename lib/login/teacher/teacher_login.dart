@@ -1,4 +1,4 @@
-import 'package:classlens/page_animations/slide_animation.dart';
+
 import 'package:flutter/material.dart';
 import 'package:classlens/login/teacher/teacher_signup_page.dart';
 import 'package:classlens/api/api.dart';

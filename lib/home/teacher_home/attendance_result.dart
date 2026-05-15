@@ -32,10 +32,7 @@ class _AttendanceResult extends State<AttendanceResult> {
 
 
     stats.sort((a, b) {
-      if (a.date == null && b.date == null) return 0;
-      if (a.date == null) return 1;
-      if (b.date == null) return -1;
-      return b.date.compareTo(a.date);
+      return (b.date ?? DateTime(1970)).compareTo(a.date ?? DateTime(1970));
     });
 
     // Update the state
@@ -130,9 +127,9 @@ class _AttendanceResult extends State<AttendanceResult> {
               const SizedBox(height: 4),
               Text(
 
-                stats.date == null
-                    ? 'No Date Available'
-                    : DateFormat.yMMMd().format(stats.date!),
+                stats.date != null
+                    ? DateFormat.yMMMd().format(stats.date!)
+                    : 'No Date Available',
                 style: const TextStyle(
                   fontSize: 13,
                   color: secondaryTextColor,

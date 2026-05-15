@@ -1,8 +1,6 @@
 import 'package:classlens/data_models/class_session_data.dart';
 import 'package:classlens/data_models/notification_hive_model.dart';
 import 'package:classlens/global/global.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -10,18 +8,13 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
-import 'firebase_options.dart';
 import 'splash_screen.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
-// Handle background messages
-@pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  print("Handling a background message: ${message.messageId}");
-}
+// Firebase messaging is disabled for the Windows desktop build.
+void _handleBackgroundMessagePlaceholder() {}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,32 +27,42 @@ void main() async {
     await dotenv.load(fileName: ".env.dev");
   }
 
-  // Initialize Firebase
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  _handleBackgroundMessagePlaceholder();
 
-  // Set up background message handler
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  try {
+    await Hive.initFlutter();
+  } catch (e) {
+    print("Hive initialization warning: $e");
+  }
 
-  // Handle foreground messages
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    print('Got a message whilst in the foreground!');
-    print('Message data: ${message.data}');
-
-    if (message.notification != null) {
-      print('Message also contained a notification: ${message.notification}');
-      // Show local notification
-      _showLocalNotification(message);
-    }
-  });
-
-  await Hive.initFlutter();
   Hive.registerAdapter(NotificationHiveModelAdapter());
   Hive.registerAdapter(SessionStatsAdapter());
-  await Hive.openBox<NotificationHiveModel>('notifications');
 
-  //await Hive.deleteBoxFromDisk("classSessionBox");
+  try {
+    await Hive.openBox<NotificationHiveModel>('notifications');
+  } catch (e) {
+    print("Error opening notifications box: $e");
+    // Try to delete and recreate
+    try {
+      await Hive.deleteBoxFromDisk('notifications');
+      await Hive.openBox<NotificationHiveModel>('notifications');
+    } catch (e2) {
+      print("Failed to recover notifications box: $e2");
+    }
+  }
 
-  classSessionBox = await Hive.openBox<SessionStats>("classSessionBox");
+  try {
+    classSessionBox = await Hive.openBox<SessionStats>("classSessionBox");
+  } catch (e) {
+    print("Error opening classSessionBox: $e");
+    // Try to delete and recreate
+    try {
+      await Hive.deleteBoxFromDisk("classSessionBox");
+      classSessionBox = await Hive.openBox<SessionStats>("classSessionBox");
+    } catch (e2) {
+      print("Failed to recover classSessionBox: $e2");
+    }
+  }
 
   print("Total sessions are ${classSessionBox.length}");
   print("totals keys are ${classSessionBox.keys}");
@@ -91,8 +94,6 @@ void main() async {
 
 void clearExpiredNotification() {
   final notificationsBox = Hive.box<NotificationHiveModel>('notifications');
-  final List<NotificationHiveModel> notifications = notificationsBox.values
-      .toList();
   final DateTime cutoffDate = DateTime.now().subtract(const Duration(days: 2));
 
   final expiredKeys = notificationsBox.values
@@ -108,8 +109,8 @@ void clearExpiredNotification() {
   }
 }
 
-// Show local notification when app is in foreground
-void _showLocalNotification(RemoteMessage message) async {
+// Show local notification when app is in foreground.
+void _showLocalNotification({String? title, String? body}) async {
   const AndroidNotificationDetails androidPlatformChannelSpecifics =
       AndroidNotificationDetails(
         'attendance_channel',
@@ -125,9 +126,9 @@ void _showLocalNotification(RemoteMessage message) async {
   );
 
   await flutterLocalNotificationsPlugin.show(
-    message.hashCode,
-    message.notification?.title ?? 'ClassLens',
-    message.notification?.body ?? '',
+    DateTime.now().millisecondsSinceEpoch.remainder(2147483647),
+    title ?? 'ClassLens',
+    body ?? '',
     platformChannelSpecifics,
   );
 }

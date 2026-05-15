@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:classlens/page_animations/slide_animation.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:classlens/api/api.dart';

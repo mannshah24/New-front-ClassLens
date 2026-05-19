@@ -1,5 +1,8 @@
+import 'package:classlens/api/api.dart';
+import 'package:classlens/global/global.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
 import 'student_colors.dart';
 
 class AttendanceHistoryTab extends StatefulWidget {
@@ -11,46 +14,71 @@ class AttendanceHistoryTab extends StatefulWidget {
 
 class _AttendanceHistoryTabState extends State<AttendanceHistoryTab> {
   DateTime _selectedDate = DateTime.now();
+  bool _isLoading = true;
+  String? _errorMessage;
+  Map<String, List<Map<String, dynamic>>> _historyData = {};
 
-  // Vyom's actual attendance data (PRN: 8022054043)
-  final Map<String, List<Map<String, dynamic>>> _historyData = {
-    "2025-11-29": [
-      {"subject": "Applied Mathematics-III-CSE", "status": "Present", "time": "12:33 AM"},
-    ],
-    "2025-11-28": [
-      {"subject": "Applied Mathematics-III-CSE", "status": "Present", "time": "11:51 PM"},
-      {"subject": "Applied Mathematics-III-CSE", "status": "Present", "time": "11:36 PM"},
-      {"subject": "Applied Mathematics-III-CSE", "status": "Present", "time": "05:01 PM"},
-      {"subject": "Applied Mathematics-III-CSE", "status": "Present", "time": "04:03 PM"},
-    ],
-    "2025-11-26": [
-      {"subject": "Applied Mathematics-III-CSE", "status": "Present", "time": "03:12 PM"},
-      {"subject": "Applied Mathematics-III-CSE", "status": "Present", "time": "03:09 PM"},
-    ],
-    "2025-11-25": [
-      {"subject": "Electronics Engineering-CSE", "status": "Absent", "time": "11:55 PM"},
-      {"subject": "Electronics Engineering-CSE", "status": "Present", "time": "04:16 PM"},
-      {"subject": "Applied Mathematics-III-CSE", "status": "Present", "time": "04:11 PM"},
-      {"subject": "Applied Mathematics-III-CSE", "status": "Absent", "time": "04:09 PM"},
-      {"subject": "Applied Mathematics-III-CSE", "status": "Present", "time": "03:58 PM"},
-      {"subject": "Applied Mathematics-III-CSE", "status": "Absent", "time": "03:53 PM"},
-    ],
-    "2025-11-24": [
-      {"subject": "Electronics Engineering-CSE", "status": "Present", "time": "12:16 AM"},
-      {"subject": "Applied Mathematics-III-CSE", "status": "Present", "time": "12:14 AM"},
-    ],
-    "2025-11-23": [
-      {"subject": "Applied Mathematics-III-CSE", "status": "Present", "time": "11:56 PM"},
-      {"subject": "Applied Mathematics-III-CSE", "status": "Absent", "time": "11:46 PM"},
-      {"subject": "Applied Mathematics-III-CSE", "status": "Absent", "time": "11:43 PM"},
-      {"subject": "Applied Mathematics-III-CSE", "status": "Present", "time": "08:25 PM"},
-      {"subject": "Applied Mathematics-III-CSE", "status": "Absent", "time": "08:17 PM"},
-      {"subject": "Applied Mathematics-III-CSE", "status": "Absent", "time": "08:12 PM"},
-      {"subject": "Applied Mathematics-III-CSE", "status": "Absent", "time": "08:07 PM"},
-      {"subject": "Applied Mathematics-III-CSE", "status": "Absent", "time": "07:54 PM"},
-      {"subject": "Applied Mathematics-III-CSE", "status": "Absent", "time": "07:46 PM"},
-    ],
-  };
+  @override
+  void initState() {
+    super.initState();
+    _loadHistory();
+  }
+
+  Future<void> _loadHistory() async {
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
+
+    try {
+      final studentId = await getStudentID();
+      if (studentId <= 0) {
+        throw Exception('Student session not found');
+      }
+
+      final result = await ApiServices.getStudentDashboard(studentId: studentId);
+      if (result['status'] != true) {
+        throw Exception(result['message'] ?? 'Failed to load attendance history');
+      }
+
+      final data = Map<String, dynamic>.from(result['data'] as Map);
+      final recentActivity = List<Map<String, dynamic>>.from(data['recent_activity'] ?? const []);
+      final groupedHistory = <String, List<Map<String, dynamic>>>{};
+
+      for (final entry in recentActivity) {
+        final dateText = entry['date']?.toString();
+        final parsedDate = dateText == null ? null : DateTime.tryParse(dateText);
+        if (parsedDate == null) {
+          continue;
+        }
+
+        final localDate = parsedDate.toLocal();
+        final dateKey = DateFormat('yyyy-MM-dd').format(localDate);
+        groupedHistory.putIfAbsent(dateKey, () => []);
+        groupedHistory[dateKey]!.add({
+          'subject': entry['subject']?.toString() ?? 'Subject',
+          'status': entry['status']?.toString() ?? 'Unknown',
+          'time': DateFormat.jm().format(localDate),
+        });
+      }
+
+      if (mounted) {
+        setState(() {
+          _historyData = groupedHistory;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   Future<void> _pickDate() async {
     final DateTime? picked = await showDatePicker(
@@ -77,6 +105,48 @@ class _AttendanceHistoryTabState extends State<AttendanceHistoryTab> {
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
+
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: primaryBackgroundColor,
+        body: Center(child: CircularProgressIndicator(color: accentColor)),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Scaffold(
+        backgroundColor: primaryBackgroundColor,
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline, color: attentionColor, size: 56),
+                const SizedBox(height: 12),
+                Text(
+                  'Unable to load live attendance history.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: primaryTextColor, fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _errorMessage!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: secondaryTextColor),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: _loadHistory,
+                  style: ElevatedButton.styleFrom(backgroundColor: accentColor),
+                  child: const Text('Retry', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: primaryBackgroundColor,
@@ -112,7 +182,7 @@ class _AttendanceHistoryTabState extends State<AttendanceHistoryTab> {
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
                       child: Text(
-                        _selectedDate.day == DateTime.now().day ? "Today" : "Past",
+                        _selectedDate.year == DateTime.now().year && _selectedDate.month == DateTime.now().month && _selectedDate.day == DateTime.now().day ? "Today" : "Past",
                         style: const TextStyle(fontSize: 12, color: secondaryTextColor, fontWeight: FontWeight.bold),
                       ),
                     )
@@ -173,7 +243,7 @@ class _AttendanceHistoryTabState extends State<AttendanceHistoryTab> {
               itemCount: 30, // Last 30 days
               itemBuilder: (context, index) {
                 DateTime date = DateTime.now().subtract(Duration(days: index));
-                bool isSelected = date.day == _selectedDate.day && date.month == _selectedDate.month && date.year == _selectedDate.year;
+                bool isSelected = date.year == _selectedDate.year && date.month == _selectedDate.month && date.day == _selectedDate.day;
                 bool hasData = _historyData.containsKey(DateFormat('yyyy-MM-dd').format(date));
 
                 Color dotColor = Colors.transparent;
@@ -224,7 +294,7 @@ class _AttendanceHistoryTabState extends State<AttendanceHistoryTab> {
           children: [
             Icon(Icons.event_busy, size: 60, color: secondaryTextColor.withOpacity(0.3)),
             const SizedBox(height: 16),
-            Text("No records for this date", style: TextStyle(color: secondaryTextColor.withOpacity(0.5))),
+            Text("No live records for this date", style: TextStyle(color: secondaryTextColor.withOpacity(0.5))),
           ],
         ),
       );

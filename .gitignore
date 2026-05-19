@@ -86,3 +86,19 @@ crash.log
 
 # ignore firebase config
 android/app/firebase-service-account.json
+
+
+# Docs
+*.md
+!README.md
+
+# Local schema folder
+New_schema
+New_schema/
+
+# Android generated reports
+android/build/reports/
+
+# Flutter/Dart generated
+.dart_tool/
+build/

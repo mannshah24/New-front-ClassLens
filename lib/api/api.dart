@@ -54,7 +54,7 @@ class ApiServices {
     required String password,
     required String? departmentID,
   }) async {
-    String endpoint = "$_baseUrl/registerNewTeacher";
+    String endpoint = "$_baseUrl/registerNewTeacher/";
     final url = Uri.parse(endpoint);
 
     try {
@@ -82,7 +82,7 @@ class ApiServices {
   }
 
   static Future<bool> sendOpt({required final String email}) async {
-    String endpoint = "$_baseUrl/sendOtp";
+    String endpoint = "$_baseUrl/sendOtp/";
     final url = Uri.parse(endpoint);
 
     try {
@@ -109,7 +109,7 @@ class ApiServices {
     required final String email,
     required final int otp,
   }) async {
-    String endpoint = "$_baseUrl/verifyOtp";
+    String endpoint = "$_baseUrl/verifyOtp/";
     final url = Uri.parse(endpoint);
 
     try {
@@ -132,7 +132,7 @@ class ApiServices {
   }
 
   static Future<String> verifyEmail({required final String email}) async {
-    String endpoint = "$_baseUrl/verifyEmail";
+    String endpoint = "$_baseUrl/verifyEmail/";
     final url = Uri.parse(endpoint);
 
     const headers = {'Content-Type': 'application/json; charset=UTF-8'};
@@ -160,7 +160,7 @@ class ApiServices {
     required final String email,
     required final String password,
   }) async {
-    String endpoint = "$_baseUrl/setPassword";
+    String endpoint = "$_baseUrl/setPassword/";
     final url = Uri.parse(endpoint);
 
     const headers = {'Content-Type': 'application/json; charset=UTF-8'};
@@ -186,7 +186,7 @@ class ApiServices {
     required final String email,
     required final String password,
   }) async {
-    String endpoint = "$_baseUrl/validateTeacher";
+    String endpoint = "$_baseUrl/validateTeacher/";
     final url = Uri.parse(endpoint);
 
     const headers = {'Content-Type': 'application/json; charset=UTF-8'};
@@ -227,7 +227,7 @@ class ApiServices {
     required final int year,
     required final int semester,
   }) async {
-    String endpoint = '$_baseUrl/getSubjectDetails';
+    String endpoint = '$_baseUrl/getSubjectDetails/';
     final url = Uri.parse(endpoint);
 
     const headers = {'Content-Type': 'application/json; charset=UTF-8'};
@@ -263,16 +263,14 @@ class ApiServices {
     required final int subjectID,
     final int? divisionID,
   }) async {
-    String endpoint = '$_baseUrl/markAttendance';
+    String endpoint = '$_baseUrl/markAttendance/';
     final url = Uri.parse(endpoint);
     try {
       final request = http.MultipartRequest('POST', url);
 
 
       request.fields['departmentName'] = departmentName;
-      request.fields['semester'] = semester.toString();
       request.fields['year'] = year.toString();
-      request.fields['subject'] = subject;
       request.fields["teacherID"] = userID.toString();
       request.fields["subjectID"] = subjectID.toString();
       if (divisionID != null) {
@@ -373,25 +371,21 @@ class ApiServices {
   }
 
   static Future<List<Map<String, dynamic>>> getDivisions({
-    int? departmentId,
+    required String departmentName,
     int? year,
     int? semester,
   }) async {
     try {
-      final queryParameters = <String, String>{};
-      if (departmentId != null) {
-        queryParameters['department'] = departmentId.toString();
-      }
-      if (year != null) {
-        queryParameters['year'] = year.toString();
-      }
-      if (semester != null) {
-        queryParameters['semester'] = semester.toString();
-      }
-
-      final endpoint = Uri.parse('$_baseUrl/admin/divisions/')
-          .replace(queryParameters: queryParameters.isEmpty ? null : queryParameters);
-      final response = await http.get(endpoint);
+      final endpoint = Uri.parse('$_baseUrl/getSubjectDetails/');
+      final response = await http.post(
+        endpoint,
+        headers: const {'Content-Type': 'application/json; charset=UTF-8'},
+        body: jsonEncode({
+          'department': departmentName,
+          'year': year,
+          'semester': semester,
+        }),
+      );
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
@@ -547,7 +541,7 @@ class ApiServices {
   }
 
   static Future<TeacherProfile> getTeacherProfile({required teacherID}) async {
-    String endpoint = '$_baseUrl/teacherProfile/$teacherID';
+    String endpoint = '$_baseUrl/teacherProfile/$teacherID/';
     final url = Uri.parse(endpoint);
 
     try {
@@ -602,7 +596,7 @@ class ApiServices {
     required final int prn,
     required final String password,
   }) async {
-    String endpoint = "$_baseUrl/validateStudent";
+    String endpoint = "$_baseUrl/validateStudent/";
     final url = Uri.parse(endpoint);
 
     const headers = {'Content-Type': 'application/json; charset=UTF-8'};
@@ -680,7 +674,7 @@ class ApiServices {
   }
 
   static Future<Map<String, String>> verifyPRN({required int prn}) async {
-    String endpoint = "$_baseUrl/verifyPRN";
+    String endpoint = "$_baseUrl/verifyPRN/";
     final url = Uri.parse(endpoint);
 
     const headers = {'Content-Type': 'application/json; charset=UTF-8'};
@@ -719,7 +713,7 @@ class ApiServices {
     required String photoFilename,
   }) async {
     try {
-      String endpoint = "$_baseUrl/setPassword";
+      String endpoint = "$_baseUrl/registerStudent/";
       final url = Uri.parse(endpoint);
 
       // Send as multipart/form-data

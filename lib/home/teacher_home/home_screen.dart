@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:classlens/api/api.dart';
 import 'package:classlens/global/providers/connectivity_provider.dart';
 import 'package:classlens/home/teacher_home/attendance_result.dart';
 import 'package:classlens/home/teacher_home/teacher_profile.dart';
@@ -46,6 +47,7 @@ class Home extends ConsumerStatefulWidget {
 
 class _HomeState extends ConsumerState<Home> {
   int _selectedIndex = 0;
+  String? _displayTeacherName;
 
 
   late final List<Widget> _pages;
@@ -54,6 +56,8 @@ class _HomeState extends ConsumerState<Home> {
   void initState(){
     super.initState();
     requestNotificationPermissions();
+    _displayTeacherName = widget.teacherName ?? userName;
+    _loadTeacherProfileName();
 
     _pages = <Widget>[
       SingleChildScrollView(
@@ -77,6 +81,23 @@ class _HomeState extends ConsumerState<Home> {
       //page 2
       AttendanceResult(),
     ];
+  }
+
+  Future<void> _loadTeacherProfileName() async {
+    try {
+      final profile = await ApiServices.getTeacherProfile(teacherID: widget.teacherID);
+      if (!mounted) {
+        return;
+      }
+
+      if (profile.name.isNotEmpty) {
+        setState(() {
+          _displayTeacherName = profile.name;
+        });
+      }
+    } catch (e) {
+      print("Failed to refresh teacher profile name: $e");
+    }
   }
   void _onItemTapped(int index) {
     setState(() {
@@ -313,7 +334,7 @@ class _HomeState extends ConsumerState<Home> {
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      widget.teacherName ?? userName,
+                      _displayTeacherName ?? widget.teacherName ?? userName,
                       style: const TextStyle(
                         color: primaryTextColor,
                         fontWeight: FontWeight.bold,

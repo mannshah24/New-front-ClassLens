@@ -103,25 +103,17 @@ class _AttendanceUploadScreenState extends State<AttendanceUploadScreen> {
     });
 
     try {
-      final departmentId = _departmentLookup
-          .where((department) => department.departmentName == _selectedDepartment)
-          .map((department) => department.id)
-          .cast<int?>()
-          .firstWhere((id) => id != null, orElse: () => null);
-
       final fetchedDivisions = await ApiServices.getDivisions(
-        departmentId: departmentId,
+        departmentName: _selectedDepartment!,
         year: int.tryParse(_selectedYear!.replaceAll(RegExp(r'[^0-9]'), '')),
         semester: int.tryParse(_selectedSemester!.replaceAll(RegExp(r'[^0-9]'), '')),
       );
 
       setState(() {
         _divisions = fetchedDivisions.where((division) {
-          final divisionDepartment = division['department'];
           final divisionYear = int.tryParse(division['year'].toString());
           final divisionSemester = int.tryParse(division['semester'].toString());
-          return (departmentId == null || divisionDepartment == departmentId) &&
-              (divisionYear == null || divisionYear == int.tryParse(_selectedYear!.replaceAll(RegExp(r'[^0-9]'), ''))) &&
+          return (divisionYear == null || divisionYear == int.tryParse(_selectedYear!.replaceAll(RegExp(r'[^0-9]'), ''))) &&
               (divisionSemester == null || divisionSemester == int.tryParse(_selectedSemester!.replaceAll(RegExp(r'[^0-9]'), '')));
         }).toList();
         _isDivisionsLoading = false;
@@ -140,20 +132,18 @@ class _AttendanceUploadScreenState extends State<AttendanceUploadScreen> {
     final name = division['name']?.toString() ?? 'Division';
     final year = division['year']?.toString();
     final semester = division['semester']?.toString();
-    final program = division['program_name']?.toString();
-
-    final details = <String>[];
-    if (program != null && program.isNotEmpty) {
-      details.add(program);
-    }
-    if (year != null && year.isNotEmpty) {
-      details.add('Year $year');
-    }
-    if (semester != null && semester.isNotEmpty) {
-      details.add('Sem $semester');
+    // Construct label from available fields (year, semester, name).
+    if ((year == null || year.isEmpty) && (semester == null || semester.isEmpty)) {
+      return name;
     }
 
-    return details.isEmpty ? name : '$name · ${details.join(' · ')}';
+    final yPart = (year != null && year.isNotEmpty) ? '${year}th year' : '';
+    final sPart = (semester != null && semester.isNotEmpty) ? '${semester}th Sem' : '';
+    final parts = <String>[];
+    if (yPart.isNotEmpty) parts.add(yPart);
+    if (sPart.isNotEmpty) parts.add(sPart);
+
+    return '${parts.join(' · ')} · Division $name';
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -374,10 +364,25 @@ class _AttendanceUploadScreenState extends State<AttendanceUploadScreen> {
                           value: _selectedDepartment,
                           items: departmentNames,
 
+                          // onChanged: (value) {
+                          //   setState(() => _selectedDepartment = value);
+                          //   _fetchSubjects();
+                          // },
+
                           onChanged: (value) {
-                            setState(() => _selectedDepartment = value);
-                            _fetchSubjects();
-                          },
+                          setState(() {
+                            _selectedDepartment = value;
+                        
+                            // Reset dependent selections
+                            _selectedSubject = null;
+                            _selectedSubjectID = null;
+                            _selectedDivision = null;
+                            _selectedDivisionID = null;
+                          });
+                        
+                          _fetchSubjects();
+                          _fetchDivisions();
+                         },
                         ),
                         const SizedBox(height: 16),
                         _buildDropdown(
@@ -385,9 +390,23 @@ class _AttendanceUploadScreenState extends State<AttendanceUploadScreen> {
                           hint: 'Year',
                           value: _selectedYear,
                           items: _years,
+                          // onChanged: (value) {
+                          //   setState(() => _selectedYear = value);
+                          //   _fetchSubjects();
+                          // },
                           onChanged: (value) {
-                            setState(() => _selectedYear = value);
+                            setState(() {
+                              _selectedYear = value;
+                          
+                              // Reset dependent selections
+                              _selectedSubject = null;
+                              _selectedSubjectID = null;
+                              _selectedDivision = null;
+                              _selectedDivisionID = null;
+                            });
+                          
                             _fetchSubjects();
+                            _fetchDivisions();
                           },
                         ),
                         const SizedBox(height: 16),
@@ -396,10 +415,24 @@ class _AttendanceUploadScreenState extends State<AttendanceUploadScreen> {
                           hint: 'Semester',
                           value: _selectedSemester,
                           items: _semesters,
+                          // onChanged: (value) {
+                          //   setState(() => _selectedSemester = value);
+                          //   _fetchSubjects();
+                          // },
                           onChanged: (value) {
-                            setState(() => _selectedSemester = value);
-                            _fetchSubjects();
-                          },
+                           setState(() {
+                             _selectedSemester = value;
+                         
+                             // Reset dependent selections
+                             _selectedSubject = null;
+                             _selectedSubjectID = null;
+                             _selectedDivision = null;
+                             _selectedDivisionID = null;
+                           });
+                         
+                           _fetchSubjects();
+                           _fetchDivisions();
+                         },
                         ),
                         const SizedBox(height: 16),
                         if (_isSubjectsLoading)
@@ -413,26 +446,44 @@ class _AttendanceUploadScreenState extends State<AttendanceUploadScreen> {
                             hint: 'Subject',
                             value: _selectedSubject,
                             items: _subjects.map((s) => s.name).toList(),
+                            // onChanged: _subjects.isEmpty
+                            //     ? null
+                            //     : (value) {
+                            //     if(value==null){
+                            //       setState(() {
+                            //         _selectedSubjectID=null;
+                            //         _selectedSubject=null;
+                            //         _selectedDivisionID=null;
+                            //         _selectedDivision=null;
+                            //         _divisions=[];
+                            //       });
+                            //     }else{
+                            //       final selectedSubject = _subjects.firstWhere((s)=>s.name==value);
+                            //       setState(() {
+                            //         _selectedSubject=selectedSubject.name;
+                            //         _selectedSubjectID=selectedSubject.id;
+                            //       });
+                            //       _fetchDivisions();
+                            //     }
+                            //     setState(() => _selectedSubject = value);
+                            // },
                             onChanged: _subjects.isEmpty
-                                ? null
-                                : (value) {
-                                if(value==null){
-                                  setState(() {
-                                    _selectedSubjectID=null;
-                                    _selectedSubject=null;
-                                    _selectedDivisionID=null;
-                                    _selectedDivision=null;
-                                    _divisions=[];
-                                  });
-                                }else{
-                                  final selectedSubject = _subjects.firstWhere((s)=>s.name==value);
-                                  setState(() {
-                                    _selectedSubject=selectedSubject.name;
-                                    _selectedSubjectID=selectedSubject.id;
-                                  });
-                                  _fetchDivisions();
-                                }
-                                setState(() => _selectedSubject = value);
+                          ? null
+                          : (value) {
+                              if (value == null) {
+                                setState(() {
+                                  _selectedSubject = null;
+                                  _selectedSubjectID = null;
+                                });
+                              } else {
+                                final selectedSubject =
+                                    _subjects.firstWhere((s) => s.name == value);
+                      
+                                setState(() {
+                                  _selectedSubject = selectedSubject.name;
+                                  _selectedSubjectID = selectedSubject.id;
+                                });
+                              }
                             },
                           ),
                           const SizedBox(height: 16),

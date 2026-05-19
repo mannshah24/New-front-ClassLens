@@ -59,8 +59,6 @@ class _StudentPasswordSetterState extends State<StudentPasswordSetter> {
       setState(() {
         _isLoading = true;
       });
-      // ignore: unused_local_variable
-      bool response = await ApiServices.setPassword(email: widget.email, password: _studentPasswordController.text);
 
       if (mounted) {
         Navigator.of(context).popUntil((route) => route.isFirst);

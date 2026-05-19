@@ -29,10 +29,14 @@ class _StudentDashboardState extends State<StudentDashboard> {
   int _classesTotal = 0;
   List<Map<String, dynamic>> _mySubjects = [];
   List<Map<String, dynamic>> _recentActivity = [];
+  String _displayStudentName = '';
+  String _displayPrn = '';
 
   @override
   void initState() {
     super.initState();
+    _displayStudentName = widget.studentName;
+    _displayPrn = widget.prn;
     _fetchDashboardData();
   }
 
@@ -67,6 +71,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
         final overall = rawOverall is num
             ? rawOverall.toDouble()
             : double.tryParse(rawOverall?.toString() ?? '');
+        final liveStudentName = data['student_name']?.toString();
+        final livePrn = data['prn']?.toString();
 
         setState(() {
           _mySubjects = subjects;
@@ -74,6 +80,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
           _overallAttendance = overall ?? (total > 0 ? (attended / total) * 100 : null);
           _classesAttended = attended;
           _classesTotal = total;
+          _displayStudentName = liveStudentName?.isNotEmpty == true ? liveStudentName! : widget.studentName;
+          _displayPrn = livePrn?.isNotEmpty == true ? livePrn! : widget.prn;
           _isLoading = false;
         });
       } else {
@@ -303,7 +311,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                       style: TextStyle(color: secondaryTextColor, fontSize: 12),
                     ),
                     SizedBox(child: Text(
-                      widget.studentName,
+                      _displayStudentName,
                       style: const TextStyle(
                         color: primaryTextColor,
                         fontWeight: FontWeight.bold,

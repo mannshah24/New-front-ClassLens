@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../data_models/class_session_data.dart';
 import '../../global/global.dart';
 import 'class_session_attendance.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 
 const Color primaryTextColor = Color(0xFF1A2533);
@@ -48,39 +49,45 @@ class _AttendanceResult extends State<AttendanceResult> {
 
   @override
   Widget build(BuildContext context) {
-    if (sessionStatsList.isEmpty) {
-
-      return RefreshIndicator(
-        onRefresh: _onRefresh,
-        child: Stack(
-          children: [
-            ListView(),
-            const Center(
-              child: Text(
-                'No attendance results found.',
-                style: TextStyle(fontSize: 18, color: secondaryTextColor),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
     return RefreshIndicator(
       onRefresh: _onRefresh,
-      child: ListView.builder(
+      child: ValueListenableBuilder<Box<dynamic>>(
+        valueListenable: classSessionBox.listenable(),
+        builder: (context, box, _) {
+          final stats = box.values.cast<SessionStats>().toList();
 
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16.0),
-        itemCount: sessionStatsList.length,
-        itemBuilder: (context, index) {
-          final stats = sessionStatsList[index];
+          stats.sort((a, b) {
+            return (b.date ?? DateTime(1970)).compareTo(a.date ?? DateTime(1970));
+          });
 
-          return _buildStatCard(
-            stats: stats,
-            onTap: () {
-              print("Tapped on session ID: ${stats.classSessionId}");
-              navigatorWithAnimation(context, ClassSessionAttendance(sessionID: stats.classSessionId,subjectName: stats.subject,));
+          if (stats.isEmpty) {
+            return Stack(
+              children: [
+                ListView(),
+                const Center(
+                  child: Text(
+                    'No attendance results found.',
+                    style: TextStyle(fontSize: 18, color: secondaryTextColor),
+                  ),
+                ),
+              ],
+            );
+          }
+
+          return ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16.0),
+            itemCount: stats.length,
+            itemBuilder: (context, index) {
+              final stat = stats[index];
+
+              return _buildStatCard(
+                stats: stat,
+                onTap: () {
+                  print("Tapped on session ID: ${stat.classSessionId}");
+                  navigatorWithAnimation(context, ClassSessionAttendance(sessionID: stat.classSessionId,subjectName: stat.subject,));
+                },
+              );
             },
           );
         },
@@ -128,7 +135,7 @@ class _AttendanceResult extends State<AttendanceResult> {
               Text(
 
                 stats.date != null
-                    ? DateFormat.yMMMd().format(stats.date!)
+                    ? DateFormat.yMMMd().add_jm().format(stats.date!)
                     : 'No Date Available',
                 style: const TextStyle(
                   fontSize: 13,

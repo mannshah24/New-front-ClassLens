@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -570,32 +571,45 @@ class _RecentActivitySectionState extends State<RecentActivitySection> {
 
         const SizedBox(height: 12),
 
+        ValueListenableBuilder<Box<dynamic>>(
+          valueListenable: classSessionBox.listenable(),
+          builder: (context, box, _) {
+            final stats = box.values.cast<SessionStats>().toList();
 
-        if (recentStats.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(16),
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: cardBackgroundColor,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Center(
-              child: Text(
-                "No recent activity found.",
-                style: TextStyle(color: secondaryTextColor, fontSize: 14),
-              ),
-            ),
-          )
-        else
-          Column(
-            children: [
-              for (int i = 0; i < recentStats.length; i++)
-                Padding(
-                  padding: EdgeInsets.only(bottom: i == recentStats.length - 1 ? 0 : 10),
-                  child: _buildActivityItemFromStats(recentStats[i]),
+            stats.sort((a, b) {
+              return (b.date ?? DateTime(1970)).compareTo(a.date ?? DateTime(1970));
+            });
+
+            final latestStats = stats.take(2).toList();
+
+            if (latestStats.isEmpty) {
+              return Container(
+                padding: const EdgeInsets.all(16),
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: cardBackgroundColor,
+                  borderRadius: BorderRadius.circular(16),
                 ),
-            ],
-          ),
+                child: const Center(
+                  child: Text(
+                    "No recent activity found.",
+                    style: TextStyle(color: secondaryTextColor, fontSize: 14),
+                  ),
+                ),
+              );
+            }
+
+            return Column(
+              children: [
+                for (int i = 0; i < latestStats.length; i++)
+                  Padding(
+                    padding: EdgeInsets.only(bottom: i == latestStats.length - 1 ? 0 : 10),
+                    child: _buildActivityItemFromStats(latestStats[i]),
+                  ),
+              ],
+            );
+          },
+        ),
       ],
     );
   }
@@ -615,8 +629,8 @@ class _RecentActivitySectionState extends State<RecentActivitySection> {
 
 
     final String dateString = (stats.date == null)
-        ? "No Date"
-        : DateFormat.yMMMd().format(stats.date);
+      ? "No Date"
+      : DateFormat.yMMMd().add_jm().format(stats.date);
 
     return _buildActivityItem(
       stats.subject,

@@ -2,8 +2,10 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:classlens/api/api.dart';
+import 'package:classlens/data_models/subjects.dart';
 import 'student_colors.dart';
 import 'subject_detail_screen.dart';
+import 'attendance_record_utils.dart';
 
 class StudentDashboard extends StatefulWidget {
   final String studentName;
@@ -32,6 +34,100 @@ class _StudentDashboardState extends State<StudentDashboard> {
   String _displayStudentName = '';
   String _displayPrn = '';
 
+  List<Map<String, dynamic>> _mergeSubjectsWithAttendance(
+    List<Map<String, dynamic>> subjects,
+    Map<String, Map<String, int>> summaries,
+  ) {
+    return subjects.map((subject) {
+      final subjectName = subject['name']?.toString() ?? '';
+      final summary = summaries[subjectName];
+      if (summary == null) {
+        return subject;
+      }
+
+      final attended = summary['attended'] ?? 0;
+      final total = summary['total'] ?? 0;
+      final percentage = total > 0 ? (attended / total) * 100 : 0.0;
+
+      return {
+        ...subject,
+        'attended': attended,
+        'present_count': attended,
+        'total': total,
+        'total_classes': total,
+        'percentage': percentage,
+      };
+    }).toList();
+  }
+
+  List<Map<String, dynamic>> _semesterSubjectMaps(List<Subjects> subjects) {
+    return subjects.map((subject) {
+      return {
+        'id': subject.id,
+        'code': subject.code,
+        'name': subject.name,
+      };
+    }).toList();
+  }
+
+  Set<String> _semesterSubjectKeys(List<Subjects> subjects) {
+    final keys = <String>{};
+    for (final subject in subjects) {
+      final codeKey = normalizeSubjectKey(subject.code);
+      final nameKey = normalizeSubjectKey(subject.name);
+      if (codeKey.isNotEmpty) keys.add(codeKey);
+      if (nameKey.isNotEmpty) keys.add(nameKey);
+    }
+    return keys;
+  }
+
+  List<Map<String, dynamic>> _mergeSemesterSubjects(
+    List<Subjects> semesterSubjects,
+    List<Map<String, dynamic>> sourceSubjects,
+  ) {
+    final sourceByKey = <String, Map<String, dynamic>>{};
+    for (final source in sourceSubjects) {
+      final key = subjectIdentityKey(source);
+      if (key.isNotEmpty) {
+        sourceByKey[key] = source;
+      }
+    }
+
+    return semesterSubjects.map((subject) {
+      final fallback = {
+        'id': subject.id,
+        'code': subject.code,
+        'name': subject.name,
+      };
+      final source = sourceByKey[normalizeSubjectKey(subject.code)] ??
+          sourceByKey[normalizeSubjectKey(subject.name)] ??
+          const <String, dynamic>{};
+      return mergeSubjectMetadata(source, fallback);
+    }).toList();
+  }
+
+  int? _asInt(dynamic value) {
+    if (value is int) {
+      return value;
+    }
+    return int.tryParse(value?.toString() ?? '');
+  }
+
+  List<Map<String, dynamic>> _filterCurrentSemesterSubjects(
+    List<Map<String, dynamic>> subjects,
+    int? year,
+    int? semester,
+  ) {
+    return subjects.where((subject) {
+      final subjectYear = _asInt(subject['year'] ?? subject['academic_year']);
+      final subjectSemester = _asInt(subject['semester'] ?? subject['sem']);
+
+      final yearMatches = year == null || subjectYear == null || subjectYear == year;
+      final semesterMatches = semester == null || subjectSemester == null || subjectSemester == semester;
+      return yearMatches && semesterMatches;
+    }).toList();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -53,31 +149,56 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
       if (result['status'] == true) {
         final data = result['data'];
-        final subjects = List<Map<String, dynamic>>.from(
+        final studentYear = _asInt(data['year']);
+        final studentSemester = _asInt(data['semester']);
+        final departmentName = data['department_name']?.toString() ?? '';
+        final semesterSubjects = (studentYear != null && studentSemester != null && departmentName.isNotEmpty)
+            ? await ApiServices.getSubjects(
+                departmentName: departmentName,
+                year: studentYear,
+                semester: studentSemester,
+              )
+            : <Subjects>[];
+
+        final sourceSubjects = List<Map<String, dynamic>>.from(
           data['subjects'] ?? data['attendance_by_subject'] ?? [],
         );
+        final semesterSubjectMaps = semesterSubjects.isNotEmpty
+            ? _mergeSemesterSubjects(semesterSubjects, sourceSubjects)
+            : sourceSubjects;
+        final normalizedActivity = await loadStudentAttendanceRecords(
+          semesterSubjects: semesterSubjects,
+          dashboardData: Map<String, dynamic>.from(data),
+          studentId: widget.studentId,
+        );
+        final summaries = summarizeAttendanceBySubject(normalizedActivity);
+        final mergedSubjects = _mergeSubjectsWithAttendance(semesterSubjectMaps, summaries);
 
-        final attended = subjects.fold<int>(0, (sum, item) {
+        final attended = mergedSubjects.fold<int>(0, (sum, item) {
           final value = item['attended'] ?? item['present_count'] ?? 0;
           return sum + (value is int ? value : int.tryParse(value.toString()) ?? 0);
         });
 
-        final total = subjects.fold<int>(0, (sum, item) {
+        final total = mergedSubjects.fold<int>(0, (sum, item) {
           final value = item['total'] ?? item['total_classes'] ?? 0;
           return sum + (value is int ? value : int.tryParse(value.toString()) ?? 0);
         });
 
         final rawOverall = data['overall_attendance'];
-        final overall = rawOverall is num
-            ? rawOverall.toDouble()
-            : double.tryParse(rawOverall?.toString() ?? '');
+        final derivedOverall = total > 0 ? (attended / total) * 100 : null;
+        final parsedOverall = rawOverall is num
+          ? rawOverall.toDouble()
+          : double.tryParse(rawOverall?.toString() ?? '');
+        final overall = (parsedOverall == null || (parsedOverall <= 0 && (derivedOverall ?? 0) > 0))
+          ? derivedOverall
+          : parsedOverall;
         final liveStudentName = data['student_name']?.toString();
         final livePrn = data['prn']?.toString();
 
         setState(() {
-          _mySubjects = subjects;
-          _recentActivity = List<Map<String, dynamic>>.from(data['recent_activity'] ?? []);
-          _overallAttendance = overall ?? (total > 0 ? (attended / total) * 100 : null);
+          _mySubjects = mergedSubjects;
+          _recentActivity = normalizedActivity;
+          _overallAttendance = overall ?? derivedOverall;
           _classesAttended = attended;
           _classesTotal = total;
           _displayStudentName = liveStudentName?.isNotEmpty == true ? liveStudentName! : widget.studentName;
@@ -358,7 +479,10 @@ class _StudentDashboardState extends State<StudentDashboard> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => SubjectDetailScreen(subject: subject),
+              builder: (context) => SubjectDetailScreen(
+                subject: subject,
+                studentId: widget.studentId,
+              ),
           ),
         );
       },
@@ -455,7 +579,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
   Widget _buildRecentActivityList() {
     return Column(
       children: _recentActivity.map((activity) {
-        String statusText = activity['status'] ?? 'Unknown';
+        String statusText = attendanceRecordStatus(activity);
         Color statusColor = statusText == "Present"
             ? successColor
             : (statusText == "Absent" ? attentionColor : warningColor);
@@ -463,12 +587,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
             ? Icons.check_circle
             : (statusText == "Absent" ? Icons.cancel : Icons.hourglass_top);
 
-        DateTime? date;
-        try {
-          date = DateTime.parse(activity['date']);
-        } catch (_) {
-          date = DateTime.now();
-        }
+        final date = attendanceRecordDate(activity) ?? DateTime.now();
 
         return Container(
           margin: const EdgeInsets.only(bottom: 10),
@@ -487,7 +606,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      activity['subject'] ?? 'Unknown',
+                      attendanceRecordSubject(activity),
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         color: primaryTextColor,
@@ -495,7 +614,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                       ),
                     ),
                     Text(
-                      DateFormat.yMMMd().format(date),
+                      DateFormat.yMMMd().add_jm().format(date),
                       style: const TextStyle(color: secondaryTextColor, fontSize: 12),
                     ),
                   ],

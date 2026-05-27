@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -67,7 +68,7 @@ class _HomeState extends ConsumerState<Home> {
           children: [
             TakeAttendanceCard(onPressed: _requestCameraPermission,),
             const SizedBox(height: 24),
-            const RecentActivitySection(),
+            RecentActivitySection(teacherID: widget.teacherID),
             const SizedBox(height: 24),
             const MyClassesSection(),
             const SizedBox(height: 20),
@@ -79,7 +80,7 @@ class _HomeState extends ConsumerState<Home> {
       StudentsPercentageStatus(teacherName: widget.teacherName,teacherID: widget.teacherID,),
 
       //page 2
-      AttendanceResult(),
+      AttendanceResult(teacherID: widget.teacherID),
     ];
   }
 
@@ -104,6 +105,14 @@ class _HomeState extends ConsumerState<Home> {
       _selectedIndex = index;
     });
 
+  }
+
+  void _handleSystemBack() {
+    if (_selectedIndex != 0) {
+      setState(() {
+        _selectedIndex = 0;
+      });
+    }
   }
 
   void _showLogoutDialog(BuildContext context) {
@@ -240,17 +249,24 @@ class _HomeState extends ConsumerState<Home> {
     final connectivity = ref.watch(connectivityStreamProvider);
     final tasks = ref.watch(taskManagerProvider);
 
-    return Scaffold(
-      backgroundColor: primaryBackgroundColor,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          ref.read(taskManagerProvider.notifier).deleteAllNotification();
+    return PopScope(
+      canPop: _selectedIndex == 0,
+      onPopInvoked: (didPop) {
+        if (!didPop) {
+          _handleSystemBack();
         }
-      ),
+      },
+      child: Scaffold(
+        backgroundColor: primaryBackgroundColor,
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            ref.read(taskManagerProvider.notifier).deleteAllNotification();
+          }
+        ),
 
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
 
           Positioned(
             top: -screenSize.width * 0.3,
@@ -299,9 +315,10 @@ class _HomeState extends ConsumerState<Home> {
           ),
 
           _buildPersistentAppBar(),
-        ],
+          ],
+        ),
+        bottomNavigationBar: _buildBottomNavBar(),
       ),
-      bottomNavigationBar: _buildBottomNavBar(),
     );
   }
 
@@ -513,14 +530,17 @@ class TakeAttendanceCard extends StatelessWidget {
 }
 
 class RecentActivitySection extends StatefulWidget {
-  const RecentActivitySection({super.key});
+  final int teacherID;
+
+  const RecentActivitySection({super.key, required this.teacherID});
 
   @override
   State<RecentActivitySection> createState() => _RecentActivitySectionState();
 }
 
 class _RecentActivitySectionState extends State<RecentActivitySection> {
-  List<SessionStats> recentStats = [];
+  List<_RecentActivityItem> recentStats = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -528,18 +548,99 @@ class _RecentActivitySectionState extends State<RecentActivitySection> {
     _loadRecentActivity();
   }
 
-  void _loadRecentActivity() {
-
-    final stats = classSessionBox.values.cast<SessionStats>().toList();
-
-
-    stats.sort((a, b) {
-        return (b.date ?? DateTime(1970)).compareTo(a.date ?? DateTime(1970));
-    });
-
+  Future<void> _loadRecentActivity() async {
     setState(() {
-      recentStats = stats.take(2).toList();
+      _isLoading = true;
     });
+
+    final remoteSessions = await ApiServices.getTeacherClassSessions(
+      teacherID: widget.teacherID,
+      limit: 10,
+    );
+
+    if (remoteSessions.isNotEmpty) {
+      final parsed = remoteSessions
+          .map(_mapRemoteSession)
+          .whereType<_RecentActivityItem>()
+          .toList();
+
+      parsed.sort((a, b) => b.stats.date.compareTo(a.stats.date));
+      _syncRemoteToHive(parsed);
+
+      if (mounted) {
+        setState(() {
+          recentStats = parsed.take(2).toList();
+          _isLoading = false;
+        });
+      }
+      return;
+    }
+
+    final localStats = classSessionBox.values.cast<SessionStats>().toList();
+    localStats.sort((a, b) => b.date.compareTo(a.date));
+
+    if (mounted) {
+      setState(() {
+        recentStats = localStats
+            .take(2)
+            .map((stats) => _RecentActivityItem(stats: stats))
+            .toList();
+        _isLoading = false;
+      });
+    }
+  }
+
+  int? _asInt(dynamic value) {
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
+  DateTime _asDateTime(dynamic value) {
+    if (value is DateTime) return value;
+    if (value is String) {
+      return DateTime.tryParse(value)?.toLocal() ?? DateTime.now();
+    }
+    return DateTime.now();
+  }
+
+  _RecentActivityItem? _mapRemoteSession(Map<String, dynamic> item) {
+    final sessionId = _asInt(item['class_session_id'] ?? item['session_id'] ?? item['id']);
+    if (sessionId == null) return null;
+
+    final subject = (item['subject_name'] ?? item['subject'] ?? item['subject_title'])?.toString();
+    if (subject == null || subject.trim().isEmpty) return null;
+
+    final present = _asInt(item['present_count']) ?? 0;
+    int absent = _asInt(item['absent_count']) ?? 0;
+    final total = _asInt(item['total_count']);
+    if (total != null && absent == 0 && total >= present) {
+      absent = total - present;
+    }
+
+    final sessionDate = _asDateTime(
+      item['class_datetime'] ?? item['marked_at'] ?? item['created_at'],
+    );
+
+    final divisionName = (item['division_name'] ??
+            item['division'] ??
+            item['division_label'])
+        ?.toString();
+
+    final stats = SessionStats()
+      ..classSessionId = sessionId
+      ..presentCount = present
+      ..absentCount = absent
+      ..subject = subject
+      ..date = sessionDate;
+
+    return _RecentActivityItem(stats: stats, divisionName: divisionName);
+  }
+
+  void _syncRemoteToHive(List<_RecentActivityItem> sessions) {
+    for (final item in sessions) {
+      classSessionBox.put(item.stats.classSessionId, item.stats);
+    }
   }
 
   @override
@@ -570,8 +671,14 @@ class _RecentActivitySectionState extends State<RecentActivitySection> {
 
         const SizedBox(height: 12),
 
-
-        if (recentStats.isEmpty)
+        if (_isLoading)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 16.0),
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            ),
+          )
+        else if (recentStats.isEmpty)
           Container(
             padding: const EdgeInsets.all(16),
             width: double.infinity,
@@ -599,7 +706,9 @@ class _RecentActivitySectionState extends State<RecentActivitySection> {
       ],
     );
   }
-  Widget _buildActivityItemFromStats(SessionStats stats) {
+  Widget _buildActivityItemFromStats(_RecentActivityItem item) {
+
+    final stats = item.stats;
 
     final total = stats.presentCount + stats.absentCount;
     final percentage = (total == 0) ? 0.0 : (stats.presentCount / total) * 100;
@@ -615,11 +724,15 @@ class _RecentActivitySectionState extends State<RecentActivitySection> {
 
 
     final String dateString = (stats.date == null)
-        ? "No Date"
-        : DateFormat.yMMMd().format(stats.date);
+      ? "No Date"
+      : DateFormat.yMMMd().add_jm().format(stats.date);
+
+    final subjectTitle = (item.divisionName != null && item.divisionName!.trim().isNotEmpty)
+        ? '${stats.subject} (${item.divisionName})'
+        : stats.subject;
 
     return _buildActivityItem(
-      stats.subject,
+      subjectTitle,
       dateString,
       percentage.toInt(),
       color,
@@ -666,6 +779,13 @@ class _RecentActivitySectionState extends State<RecentActivitySection> {
     );
   }
 
+}
+
+class _RecentActivityItem {
+  final SessionStats stats;
+  final String? divisionName;
+
+  const _RecentActivityItem({required this.stats, this.divisionName});
 }
 
 class MyClassesSection extends StatelessWidget {

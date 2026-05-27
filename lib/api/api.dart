@@ -470,6 +470,71 @@ class ApiServices {
     }
   }
 
+  static Future<List<Map<String, dynamic>>> getTeacherClassSessions({
+    required int teacherID,
+    int? limit,
+  }) async {
+    try {
+      final queryParameters = <String, String>{
+        'teacher_id': teacherID.toString(),
+      };
+      if (limit != null) {
+        queryParameters['limit'] = limit.toString();
+      }
+
+      final endpoint = Uri.parse('$_baseUrl/teacher/class-sessions/')
+          .replace(queryParameters: queryParameters);
+      final response = await http.get(endpoint);
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          return _decodeMapList(
+            decoded['class_sessions'] ??
+                decoded['sessions'] ??
+                decoded['results'] ??
+                decoded['data'] ??
+                decoded,
+          );
+        }
+        return _decodeMapList(decoded);
+      }
+    } catch (e) {
+      print('getTeacherClassSessions GET failed: ${e.toString()}');
+    }
+
+    // Backward-compatible fallback for older backend contracts.
+    try {
+      final endpoint = Uri.parse('$_baseUrl/getTeacherClassSessions/');
+      final response = await http.post(
+        endpoint,
+        headers: const {'Content-Type': 'application/json; charset=UTF-8'},
+        body: jsonEncode({
+          'teacher_id': teacherID,
+          'limit': limit,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          return _decodeMapList(
+            decoded['class_sessions'] ??
+                decoded['sessions'] ??
+                decoded['results'] ??
+                decoded['data'] ??
+                decoded,
+          );
+        }
+        return _decodeMapList(decoded);
+      }
+    } catch (e) {
+      print('getTeacherClassSessions POST failed: ${e.toString()}');
+    }
+
+    return [];
+  }
+
   static Future<List<PresentAbsenteesStudents>> getPresentAbsentStudents({
     required sessionID,
     required bool isPresent,

@@ -130,20 +130,7 @@ class _AttendanceUploadScreenState extends State<AttendanceUploadScreen> {
 
   String _divisionLabel(Map<String, dynamic> division) {
     final name = division['name']?.toString() ?? 'Division';
-    final year = division['year']?.toString();
-    final semester = division['semester']?.toString();
-    // Construct label from available fields (year, semester, name).
-    if ((year == null || year.isEmpty) && (semester == null || semester.isEmpty)) {
-      return name;
-    }
-
-    final yPart = (year != null && year.isNotEmpty) ? '${year}th year' : '';
-    final sPart = (semester != null && semester.isNotEmpty) ? '${semester}th Sem' : '';
-    final parts = <String>[];
-    if (yPart.isNotEmpty) parts.add(yPart);
-    if (sPart.isNotEmpty) parts.add(sPart);
-
-    return '${parts.join(' · ')} · Division $name';
+    return name;
   }
 
   Future<void> _pickImage(ImageSource source) async {

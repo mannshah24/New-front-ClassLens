@@ -48,6 +48,14 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     setState(() => _selectedIndex = index);
   }
 
+  void _handleSystemBack() {
+    if (_selectedIndex != 0) {
+      setState(() {
+        _selectedIndex = 0;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -59,25 +67,33 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       );
     }
 
-    return Scaffold(
-      backgroundColor: primaryBackgroundColor,
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _pages,
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.calendar_month_rounded), label: 'History'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline_rounded), label: 'Profile'),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: accentColor,
-        unselectedItemColor: secondaryTextColor,
-        backgroundColor: cardBackgroundColor,
-        elevation: 10,
-        type: BottomNavigationBarType.fixed,
-        onTap: _onItemTapped,
+    return PopScope(
+      canPop: _selectedIndex == 0,
+      onPopInvoked: (didPop) {
+        if (!didPop) {
+          _handleSystemBack();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: primaryBackgroundColor,
+        body: IndexedStack(
+          index: _selectedIndex,
+          children: _pages,
+        ),
+        bottomNavigationBar: BottomNavigationBar(
+          items: const <BottomNavigationBarItem>[
+            BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: 'Home'),
+            BottomNavigationBarItem(icon: Icon(Icons.calendar_month_rounded), label: 'History'),
+            BottomNavigationBarItem(icon: Icon(Icons.person_outline_rounded), label: 'Profile'),
+          ],
+          currentIndex: _selectedIndex,
+          selectedItemColor: accentColor,
+          unselectedItemColor: secondaryTextColor,
+          backgroundColor: cardBackgroundColor,
+          elevation: 10,
+          type: BottomNavigationBarType.fixed,
+          onTap: _onItemTapped,
+        ),
       ),
     );
   }

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import 'student_colors.dart';
+import 'attendance_record_utils.dart';
+import 'package:classlens/data_models/subjects.dart';
 
 class AttendanceHistoryTab extends StatefulWidget {
   const AttendanceHistoryTab({super.key});
@@ -44,23 +46,35 @@ class _AttendanceHistoryTabState extends State<AttendanceHistoryTab> {
       }
 
       final data = Map<String, dynamic>.from(result['data'] as Map);
-      final recentActivity = List<Map<String, dynamic>>.from(data['recent_activity'] ?? const []);
+      final studentYear = int.tryParse(data['year']?.toString() ?? '');
+      final studentSemester = int.tryParse(data['semester']?.toString() ?? '');
+      final departmentName = data['department_name']?.toString() ?? '';
+      final semesterSubjects = (studentYear != null && studentSemester != null && departmentName.isNotEmpty)
+          ? await ApiServices.getSubjects(
+              departmentName: departmentName,
+              year: studentYear,
+              semester: studentSemester,
+            )
+          : <Subjects>[];
+      final recentActivity = await loadStudentAttendanceRecords(
+        semesterSubjects: semesterSubjects,
+        dashboardData: data,
+        studentId: studentId,
+      );
       final groupedHistory = <String, List<Map<String, dynamic>>>{};
 
       for (final entry in recentActivity) {
-        final dateText = entry['date']?.toString();
-        final parsedDate = dateText == null ? null : DateTime.tryParse(dateText);
+        final parsedDate = attendanceRecordDate(entry);
         if (parsedDate == null) {
           continue;
         }
 
-        final localDate = parsedDate.toLocal();
-        final dateKey = DateFormat('yyyy-MM-dd').format(localDate);
+        final dateKey = DateFormat('yyyy-MM-dd').format(parsedDate);
         groupedHistory.putIfAbsent(dateKey, () => []);
         groupedHistory[dateKey]!.add({
-          'subject': entry['subject']?.toString() ?? 'Subject',
-          'status': entry['status']?.toString() ?? 'Unknown',
-          'time': DateFormat.jm().format(localDate),
+          'subject': attendanceRecordSubject(entry),
+          'status': attendanceRecordStatus(entry),
+          'time': DateFormat.jm().format(parsedDate),
         });
       }
 
@@ -319,15 +333,21 @@ class _AttendanceHistoryTabState extends State<AttendanceHistoryTab> {
           ),
           child: Row(
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(cls['time'], style: const TextStyle(color: secondaryTextColor, fontSize: 12, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  Text(cls['subject'], style: const TextStyle(color: primaryTextColor, fontSize: 16, fontWeight: FontWeight.bold)),
-                ],
-              ),
-              const Spacer(),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(cls['time'], style: const TextStyle(color: secondaryTextColor, fontSize: 12, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Text(
+                        cls['subject'],
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: primaryTextColor, fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),

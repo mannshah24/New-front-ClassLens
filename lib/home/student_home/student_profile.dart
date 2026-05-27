@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 
 import 'face_update_screen.dart';
 import 'student_colors.dart';
+import 'package:classlens/data_models/subjects.dart';
+import 'attendance_record_utils.dart';
 
 class StudentProfileTab extends StatefulWidget {
   final String studentName;
@@ -40,6 +42,61 @@ class _StudentProfileTabState extends State<StudentProfileTab> {
 
     final data = Map<String, dynamic>.from(result['data'] as Map);
     data['student_id'] = studentId;
+
+    final studentYear = _asInt(data['year']);
+    final studentSemester = _asInt(data['semester']);
+    final departmentName = data['department_name']?.toString() ?? '';
+
+    final semesterSubjects = (studentYear != null && studentSemester != null && departmentName.isNotEmpty)
+        ? await ApiServices.getSubjects(
+            departmentName: departmentName,
+            year: studentYear,
+            semester: studentSemester,
+          )
+        : <Subjects>[];
+    final sourceSubjects = List<Map<String, dynamic>>.from(data['subjects'] ?? const []);
+    final semesterSubjectMaps = semesterSubjects.isNotEmpty
+      ? semesterSubjects
+        .map((subject) {
+          final fallback = {'id': subject.id, 'code': subject.code, 'name': subject.name};
+          final source = sourceSubjects.firstWhere(
+          (item) => subjectIdentityKey(item) == normalizeSubjectKey(subject.code) ||
+            subjectIdentityKey(item) == normalizeSubjectKey(subject.name),
+          orElse: () => const <String, dynamic>{},
+          );
+          return mergeSubjectMetadata(source, fallback);
+        })
+        .toList()
+      : sourceSubjects;
+    final normalizedActivity = await loadStudentAttendanceRecords(
+      semesterSubjects: semesterSubjects,
+      dashboardData: data,
+      studentId: studentId,
+    );
+    final summaries = summarizeAttendanceBySubject(normalizedActivity);
+
+    data['recent_activity'] = normalizedActivity;
+    data['subjects'] = semesterSubjectMaps.map((subject) {
+      final subjectName = subject['name']?.toString() ?? '';
+      final summary = summaries[subjectName];
+      if (summary == null) {
+        return subject;
+      }
+
+      final attended = summary['attended'] ?? 0;
+      final total = summary['total'] ?? 0;
+      final percentage = total > 0 ? (attended / total) * 100 : 0.0;
+
+      return {
+        ...subject,
+        'attended': attended,
+        'present_count': attended,
+        'total': total,
+        'total_classes': total,
+        'percentage': percentage,
+      };
+    }).toList();
+    data['division_name'] = data['division_name'] ?? data['division'] ?? data['divisionName'] ?? '';
     return data;
   }
 
@@ -62,21 +119,27 @@ class _StudentProfileTabState extends State<StudentProfileTab> {
 
   double? _overallAttendance(Map<String, dynamic> data, List<Map<String, dynamic>> subjects) {
     final rawAttendance = data['overall_attendance'];
-    if (rawAttendance is num) {
-      return rawAttendance.toDouble();
+    final attended = subjects.fold<int>(0, (sum, item) => sum + _asInt(item['attended'] ?? item['present_count']));
+    final total = subjects.fold<int>(0, (sum, item) => sum + _asInt(item['total'] ?? item['total_classes']));
+
+    final derived = total == 0 ? null : (attended / total) * 100;
+
+    final parsed = rawAttendance is num
+        ? rawAttendance.toDouble()
+        : double.tryParse(rawAttendance?.toString() ?? '');
+
+    if (parsed == null || (parsed <= 0 && (derived ?? 0) > 0)) {
+      return derived;
     }
 
-    final parsed = double.tryParse(rawAttendance?.toString() ?? '');
     if (parsed != null) {
       return parsed;
     }
 
-    final attended = subjects.fold<int>(0, (sum, item) => sum + _asInt(item['attended'] ?? item['present_count']));
-    final total = subjects.fold<int>(0, (sum, item) => sum + _asInt(item['total'] ?? item['total_classes']));
     if (total == 0) {
       return null;
     }
-    return (attended / total) * 100;
+    return derived;
   }
 
   void _showLogoutDialog(BuildContext context) {
@@ -128,6 +191,7 @@ class _StudentProfileTabState extends State<StudentProfileTab> {
         final year = data['year']?.toString() ?? '';
         final departmentName = data['department_name']?.toString() ?? '';
         final semester = data['semester']?.toString() ?? '';
+        final divisionName = data['division_name']?.toString() ?? data['division']?.toString() ?? data['divisionName']?.toString() ?? '';
 
         return Scaffold(
           backgroundColor: Colors.transparent,
@@ -173,11 +237,11 @@ class _StudentProfileTabState extends State<StudentProfileTab> {
                     attended: attended,
                     totalClasses: totalClasses,
                     subjectsCount: subjects.length,
-                    recentActivityCount: recentActivity.length,
                     email: email,
                     year: year,
                     departmentName: departmentName,
                     semester: semester,
+                    divisionName: divisionName,
                   ),
                 ),
 
@@ -217,11 +281,11 @@ class _StudentProfileTabState extends State<StudentProfileTab> {
     required int attended,
     required int totalClasses,
     required int subjectsCount,
-    required int recentActivityCount,
     required String email,
     required String year,
     required String departmentName,
     required String semester,
+    required String divisionName,
   }) {
     return Container(
       width: double.infinity,
@@ -238,10 +302,10 @@ class _StudentProfileTabState extends State<StudentProfileTab> {
           const SizedBox(height: 66), // 50 (radius) + 16 padding
           Text(studentName, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: primaryTextColor)),
           const SizedBox(height: 4),
-          const Text("Live student profile", style: TextStyle(fontSize: 16, color: secondaryTextColor)),
+          // const Text("Live student profile", style: TextStyle(fontSize: 16, color: secondaryTextColor)),
 
           const SizedBox(height: 20),
-          _buildStatsRow(overallAttendance, subjectsCount, recentActivityCount),
+          _buildStatsRow(overallAttendance, subjectsCount),
 
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -254,6 +318,7 @@ class _StudentProfileTabState extends State<StudentProfileTab> {
           _buildDetailRow(icon: Icons.school_outlined, title: "Department", value: departmentName.isEmpty ? 'N/A' : departmentName),
           _buildDetailRow(icon: Icons.calendar_month, title: "Year", value: year.isEmpty ? 'N/A' : year),
           _buildDetailRow(icon: Icons.menu_book_rounded, title: "Semester", value: semester.isEmpty ? 'N/A' : semester),
+          _buildDetailRow(icon: Icons.groups_outlined, title: "Division", value: divisionName.isEmpty ? 'N/A' : divisionName),
           _buildDetailRow(icon: Icons.fact_check_outlined, title: "Classes Attended", value: attended.toString()),
           _buildDetailRow(icon: Icons.event_note, title: "Total Classes", value: totalClasses.toString()),
 
@@ -328,7 +393,7 @@ class _StudentProfileTabState extends State<StudentProfileTab> {
     );
   }
 
-  Widget _buildStatsRow(double? overallAttendance, int subjectsCount, int recentActivityCount) {
+  Widget _buildStatsRow(double? overallAttendance, int subjectsCount) {
     final attendanceLabel = overallAttendance == null ? 'N/A' : '${overallAttendance.toStringAsFixed(1)}%';
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 16.0),
@@ -338,8 +403,6 @@ class _StudentProfileTabState extends State<StudentProfileTab> {
           _buildStatItem("Attendance", attendanceLabel),
           Container(width: 1, height: 40, color: secondaryTextColor.withOpacity(0.2)),
           _buildStatItem("Subjects", subjectsCount.toString()),
-          Container(width: 1, height: 40, color: secondaryTextColor.withOpacity(0.2)),
-          _buildStatItem("Recent", recentActivityCount.toString()),
         ],
       ),
     );

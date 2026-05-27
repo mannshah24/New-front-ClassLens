@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import 'student_colors.dart';
+import 'attendance_record_utils.dart';
 
 class SubjectDetailScreen extends StatefulWidget {
   final Map<String, dynamic> subject;
+  final int studentId;
 
-  const SubjectDetailScreen({super.key, required this.subject});
+  const SubjectDetailScreen({super.key, required this.subject, required this.studentId});
 
   @override
   State<SubjectDetailScreen> createState() => _SubjectDetailScreenState();
@@ -56,7 +58,9 @@ class _SubjectDetailScreenState extends State<SubjectDetailScreen> {
     }
 
     setState(() {
-      _history = history;
+      _history = normalizeAttendanceRecords(
+        filterAttendanceByStudent(history, studentId: widget.studentId),
+      );
       _isLoading = false;
     });
   }
@@ -89,7 +93,7 @@ class _SubjectDetailScreenState extends State<SubjectDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final subjectName = widget.subject['name']?.toString() ?? 'Subject Details';
-    final teacherName = widget.subject['teacher']?.toString() ?? 'Teacher unavailable';
+    final teacherName = widget.subject['teacher']?.toString() ?? widget.subject['teacher_name']?.toString() ?? 'Teacher unavailable';
     final total = widget.subject['total'] ?? widget.subject['total_classes'] ?? 0;
     final attended = widget.subject['attended'] ?? widget.subject['present_count'] ?? 0;
     final percentage = widget.subject['percentage'] ?? 0;
@@ -181,7 +185,7 @@ class _SubjectDetailScreenState extends State<SubjectDetailScreen> {
                   final session = _history[index];
                   final statusText = _attendanceLabel(session['status']);
                   final isPresent = statusText == 'Present';
-                  final date = _parseDate(session['date'] ?? session['marked_at'] ?? session['class_datetime']) ?? DateTime.now();
+                  final date = attendanceRecordDate(session) ?? DateTime.now();
 
                   return Container(
                     margin: const EdgeInsets.only(bottom: 10),
@@ -193,7 +197,7 @@ class _SubjectDetailScreenState extends State<SubjectDetailScreen> {
                     child: Row(
                       children: [
                         Text(
-                          DateFormat.yMMMd().format(date),
+                          DateFormat.yMMMd().add_jm().format(date),
                           style: const TextStyle(fontWeight: FontWeight.bold, color: primaryTextColor),
                         ),
                         const Spacer(),

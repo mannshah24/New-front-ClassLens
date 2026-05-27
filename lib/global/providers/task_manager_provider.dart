@@ -53,6 +53,26 @@ class TaskManagerNotifier extends Notifier<List<UserTask>> {
 
   final Map<String, ProviderSubscription<AsyncValue<TaskStatus>>> _activeSubscriptions = {};
 
+  DateTime? _extractRecordedTime(dynamic result) {
+    if (result is! Map) {
+      return null;
+    }
+
+    for (final key in ['marked_at', 'timestamp', 'created_at', 'date']) {
+      final value = result[key];
+      if (value == null) {
+        continue;
+      }
+
+      final parsed = DateTime.tryParse(value.toString());
+      if (parsed != null) {
+        return parsed.toLocal();
+      }
+    }
+
+    return null;
+  }
+
 
   void _listenToSingleTask(UserTask task) {
     if (_activeSubscriptions.containsKey(task.taskID)) {
@@ -147,7 +167,7 @@ class TaskManagerNotifier extends Notifier<List<UserTask>> {
             ..classSessionId=classSessionID
             ..presentCount=presentCount
             ..absentCount=absentCount
-            ..date=DateTime.now();
+            ..date=_extractRecordedTime(status.result) ?? DateTime.now();
           classSessionBox.put(classSessionID, newStats);
           print("updateTaskStatus ($taskID): Saved new ID $classSessionID to Hive.");
         } else {

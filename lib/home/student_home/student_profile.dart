@@ -302,7 +302,7 @@ class _StudentProfileTabState extends State<StudentProfileTab> {
           const SizedBox(height: 66), // 50 (radius) + 16 padding
           Text(studentName, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: primaryTextColor)),
           const SizedBox(height: 4),
-          const Text("Live student profile", style: TextStyle(fontSize: 16, color: secondaryTextColor)),
+          // const Text("Live student profile", style: TextStyle(fontSize: 16, color: secondaryTextColor)),
 
           const SizedBox(height: 20),
           _buildStatsRow(overallAttendance, subjectsCount),

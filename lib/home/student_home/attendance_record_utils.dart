@@ -414,7 +414,7 @@ Future<List<Map<String, dynamic>>> loadStudentAttendanceRecords({
     }
   }
 
-  return normalizeAttendanceRecords(
+  final normalizedRecords = normalizeAttendanceRecords(
     filterAttendanceByStudent(
       subjectKeys.isNotEmpty
           ? filterAttendanceBySubjectKeys(fallbackRecentActivity, subjectKeys)
@@ -423,4 +423,6 @@ Future<List<Map<String, dynamic>>> loadStudentAttendanceRecords({
       studentPrn: studentPrn,
     ),
   );
+
+  return normalizedRecords;
 }

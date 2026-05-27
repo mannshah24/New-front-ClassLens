@@ -1,5 +1,4 @@
 import 'package:classlens/home/student_home/home_screen.dart';
-import 'package:classlens/page_animations/slide_animation.dart';
 import 'package:flutter/material.dart';
 import 'package:classlens/login/student/student_signup_page.dart';
 import 'package:classlens/api/api.dart';
@@ -323,9 +322,23 @@ class _StudentLoginPageState extends State<StudentLogin> {
           // Register FCM token for push notifications
           await registerFCMToken(result['student_id']);
 
-          navigatorWithAnimation(
-            context,
-            const StudentHomeScreen(),
+          Navigator.of(context).pushReplacement(
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) => const StudentHomeScreen(),
+              transitionDuration: const Duration(milliseconds: 500),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                const begin = Offset(1.0, 0.0);
+                const end = Offset.zero;
+                const curve = Curves.easeInOut;
+
+                final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+
+                return SlideTransition(
+                  position: animation.drive(tween),
+                  child: child,
+                );
+              },
+            ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(

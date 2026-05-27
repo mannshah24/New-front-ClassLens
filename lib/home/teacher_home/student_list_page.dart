@@ -364,14 +364,14 @@ class StudentProgressTile extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "Student ID: ${student.studentID}",
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: secondaryTextColor,
-                        ),
-                      ),
+                      // const SizedBox(height: 4),
+                      // Text(
+                      //   "Student ID: ${student.studentID}",
+                      //   style: const TextStyle(
+                      //     fontSize: 13,
+                      //     color: secondaryTextColor,
+                      //   ),
+                      // ),
                       const SizedBox(height: 4),
                       Text(
                         "Classes: ${student.attendedClasses} / ${student.totalClasses}",

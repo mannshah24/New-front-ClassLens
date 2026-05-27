@@ -24,6 +24,8 @@ class StudentDashboard extends StatefulWidget {
 }
 
 class _StudentDashboardState extends State<StudentDashboard> {
+  static const int _recentActivityLimit = 6;
+
   bool _isLoading = true;
   String? _errorMessage;
   double? _overallAttendance;
@@ -197,7 +199,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
         setState(() {
           _mySubjects = mergedSubjects;
-          _recentActivity = normalizedActivity;
+          _recentActivity = normalizedActivity.take(_recentActivityLimit).toList();
           _overallAttendance = overall ?? derivedOverall;
           _classesAttended = attended;
           _classesTotal = total;

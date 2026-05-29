@@ -317,6 +317,7 @@ class _StudentLoginPageState extends State<StudentLogin> {
             studentName: result['studentName'],
             studentID: result['student_id'],
             prn: result['prn'].toString(),
+            accessToken: result['accessToken']?.toString(),
           );
 
           // Register FCM token for push notifications

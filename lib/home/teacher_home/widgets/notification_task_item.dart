@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:classlens/global/providers/task_manager_provider.dart';
+import 'package:classlens/global/config.dart';
 
 const Color primaryTextColor = Color(0xFF1A2533);
 const Color secondaryTextColor = Color(0xFF6C757D);
@@ -18,6 +19,81 @@ class NotificationTaskItem extends ConsumerWidget {
     required this.isRead,
     super.key,
   });
+
+  String? _extractImageUrl(dynamic payload) {
+    if (payload == null) {
+      return null;
+    }
+
+    if (payload is String) {
+      final value = payload.trim();
+      return value.isEmpty ? null : value;
+    }
+
+    if (payload is List) {
+      for (final item in payload) {
+        final url = _extractImageUrl(item);
+        if (url != null) {
+          return url;
+        }
+      }
+      return null;
+    }
+
+    if (payload is Map) {
+      final map = payload.cast<dynamic, dynamic>();
+      const directKeys = [
+        'image_url',
+        'image',
+        'result_image',
+        'processed_image',
+        'annotated_image',
+        'attendance_image',
+        'photo_url',
+      ];
+
+      for (final key in directKeys) {
+        final value = map[key];
+        if (value is String && value.trim().isNotEmpty) {
+          return value.trim();
+        }
+      }
+
+      final imageUrls = map['image_urls'];
+      if (imageUrls is List) {
+        for (final item in imageUrls) {
+          if (item is String && item.trim().isNotEmpty) {
+            return item.trim();
+          }
+        }
+      }
+
+      for (final value in map.values) {
+        final nested = _extractImageUrl(value);
+        if (nested != null) {
+          return nested;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  String _toAbsoluteImageUrl(String rawUrl) {
+    final url = rawUrl.trim();
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+
+    final apiUri = Uri.parse(AppConfig.baseUrl);
+    final origin = '${apiUri.scheme}://${apiUri.host}${apiUri.hasPort ? ':${apiUri.port}' : ''}';
+
+    if (url.startsWith('/')) {
+      return '$origin$url';
+    }
+
+    return '$origin/$url';
+  }
 
   void _showResultImage(BuildContext context, String imageUrl) {
     showDialog(
@@ -77,8 +153,15 @@ class NotificationTaskItem extends ConsumerWidget {
         child: const Text("View", style: TextStyle(fontWeight: FontWeight.bold)),
         onPressed: () {
           if (!isRead) taskManager.markAllRead();
-          if (status.result is Map && status.result.containsKey('image_url')) {
-            _showResultImage(context, status.result['image_url']);
+          final rawImageUrl = _extractImageUrl(status.result);
+          if (rawImageUrl != null) {
+            _showResultImage(context, _toAbsoluteImageUrl(rawImageUrl));
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Attendance processed, but no result image was returned.'),
+              ),
+            );
           }
         },
       );

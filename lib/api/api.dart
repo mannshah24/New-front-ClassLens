@@ -15,6 +15,32 @@ import '../global/global.dart';
 class ApiServices {
   static final String _baseUrl = AppConfig.baseUrl;
 
+  static String _extractMessageFromBody(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map) {
+        final dynamic message = decoded['detail'] ?? decoded['error'] ?? decoded['message'];
+        if (message != null) {
+          return message.toString();
+        }
+      }
+      if (decoded is String) {
+        return decoded;
+      }
+    } catch (_) {
+      // Fall through to raw body.
+    }
+    return body.trim().isEmpty ? 'Unknown error' : body;
+  }
+
+  static MediaType _mediaTypeForImage(String filename) {
+    final lowerName = filename.toLowerCase();
+    if (lowerName.endsWith('.png')) {
+      return MediaType('image', 'png');
+    }
+    return MediaType('image', 'jpeg');
+  }
+
   static List<Map<String, dynamic>> _decodeMapList(dynamic value) {
     if (value is List) {
       return value
@@ -44,7 +70,7 @@ class ApiServices {
       }
     } catch (e) {
       print(e.toString());
-      throw Exception("Failed to load : ${e}");
+      throw Exception("Failed to load : $e");
     }
   }
 
@@ -678,16 +704,31 @@ class ApiServices {
         int studentId = decoded['student_id'];
         int studentPrn = decoded['prn'];
         String message = decoded['message'];
+        String? accessToken;
+
+        for (final key in const ['access_token', 'accessToken', 'token', 'authToken']) {
+          final value = decoded[key];
+          if (value != null && value.toString().trim().isNotEmpty) {
+            accessToken = value.toString().trim();
+            break;
+          }
+        }
 
         print("student validated successfully");
         print(message);
-        return {
+        final result = {
           'status': true,
           'studentName': studentName,
           'student_id': studentId,
           'prn': studentPrn,
           'message': message
         };
+
+        if (accessToken != null) {
+          result['accessToken'] = accessToken;
+        }
+
+        return result;
       } else {
         print("student validation failed");
         // Handle potential missing 'detail' key safely
@@ -700,6 +741,89 @@ class ApiServices {
     } catch (e) {
       print(e.toString());
       return {'status': false, 'studentName': 'student', 'student_id': 0, 'prn': 0, 'message': 'exception'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> updateStudentFace({
+    required List<int> photoBytes,
+    required String photoFilename,
+    String? prn,
+    String? accessToken,
+  }) async {
+    final normalizedToken = accessToken?.trim() ?? '';
+    final normalizedPrn = prn?.trim() ?? '';
+
+    if (normalizedToken.isEmpty && normalizedPrn.isEmpty) {
+      return {
+        'status': false,
+        'message': 'prn is required',
+      };
+    }
+
+    Future<Map<String, dynamic>> sendMultipart(String endpoint) async {
+      final url = Uri.parse(endpoint);
+      final request = http.MultipartRequest('POST', url);
+
+      if (normalizedToken.isNotEmpty) {
+        request.headers['Authorization'] = 'Bearer $normalizedToken';
+      } else {
+        request.fields['prn'] = normalizedPrn;
+      }
+
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'photo',
+          photoBytes,
+          filename: photoFilename,
+          contentType: _mediaTypeForImage(photoFilename),
+        ),
+      );
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      final message = _extractMessageFromBody(response.body);
+
+      return {
+        'statusCode': response.statusCode,
+        'message': message,
+        'body': response.body,
+      };
+    }
+
+    try {
+      final primary = await sendMultipart("$_baseUrl/updateFace/");
+      if (primary['statusCode'] == 200) {
+        return {
+          'status': true,
+          'message': primary['message'] ?? 'Student face updated successfully',
+        };
+      }
+
+      if (primary['statusCode'] == 404 || primary['statusCode'] == 405) {
+        final fallback = await sendMultipart("$_baseUrl/registerStudent/");
+        if (fallback['statusCode'] == 200) {
+          return {
+            'status': true,
+            'message': fallback['message'] ?? 'Student face updated successfully',
+          };
+        }
+
+        return {
+          'status': false,
+          'message': fallback['message'] ?? 'Failed to update face',
+        };
+      }
+
+      return {
+        'status': false,
+        'message': primary['message'] ?? 'Failed to update face',
+      };
+    } catch (e) {
+      print('Error updating student face: $e');
+      return {
+        'status': false,
+        'message': e.toString(),
+      };
     }
   }
 

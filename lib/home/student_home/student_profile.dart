@@ -21,7 +21,7 @@ class StudentProfileTab extends StatefulWidget {
 }
 
 class _StudentProfileTabState extends State<StudentProfileTab> {
-  late final Future<Map<String, dynamic>> _profileFuture;
+  late Future<Map<String, dynamic>> _profileFuture;
 
   @override
   void initState() {
@@ -339,7 +339,18 @@ class _StudentProfileTabState extends State<StudentProfileTab> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const StudentFaceUpdateScreen()));
+                  Navigator.push<bool>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => StudentFaceUpdateScreen(prn: prn),
+                    ),
+                  ).then((updated) {
+                    if (updated == true && mounted) {
+                      setState(() {
+                        _profileFuture = _loadProfileData();
+                      });
+                    }
+                  });
                 },
               ),
             ),

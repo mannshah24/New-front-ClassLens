@@ -1,4 +1,3 @@
-import 'package:classlens/api/api.dart';
 import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -13,6 +12,7 @@ const String _keyTeacherID = "teacherID";
 const String _keyStudentName = "studentName";
 const String _keyStudentID = "studentID";
 const String _keyStudentPRN = "studentPRN";
+const String _keyStudentAccessToken = "studentAccessToken";
 
 Future<bool> getRememberMe() async {
   final pref = await SharedPreferences.getInstance();
@@ -74,6 +74,7 @@ Future<void> saveStudentSession({
   required String studentName,
   required int studentID,
   required String prn,
+  String? accessToken,
 }) async {
   final pref = await SharedPreferences.getInstance();
   await pref.setBool(_keyRememberMe, rememberMe);
@@ -81,6 +82,17 @@ Future<void> saveStudentSession({
   await pref.setString(_keyStudentName, studentName);
   await pref.setInt(_keyStudentID, studentID);
   await pref.setString(_keyStudentPRN, prn);
+
+  if (accessToken != null && accessToken.trim().isNotEmpty) {
+    await pref.setString(_keyStudentAccessToken, accessToken.trim());
+  } else {
+    await pref.remove(_keyStudentAccessToken);
+  }
+}
+
+Future<String> getStudentAccessToken() async {
+  final pref = await SharedPreferences.getInstance();
+  return pref.getString(_keyStudentAccessToken) ?? "";
 }
 
 Future<void> registerFCMToken(int studentId) async {

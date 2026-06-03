@@ -1,19 +1,15 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:dotted_border/dotted_border.dart';
+import 'package:classlens/api/api.dart';
+import 'package:classlens/global/global.dart';
 import 'student_colors.dart';
 
-class ValidationResult {
-  final bool isValid;
-  final List<String> messages;
-  final Rect? faceBoundingBox;
-  ValidationResult({required this.isValid, this.messages = const [], this.faceBoundingBox});
-}
-
 class StudentFaceUpdateScreen extends StatefulWidget {
-  const StudentFaceUpdateScreen({super.key});
+  final String prn;
+
+  const StudentFaceUpdateScreen({super.key, required this.prn});
 
   @override
   State<StudentFaceUpdateScreen> createState() => _StudentFaceUpdateScreenState();
@@ -50,90 +46,74 @@ class _StudentFaceUpdateScreenState extends State<StudentFaceUpdateScreen> {
     setState(() => _imageFile = null);
   }
 
-  Future<Size> _getImageSize(XFile imageFile) async {
-    final bytes = await imageFile.readAsBytes();
-    final image = await decodeImageFromList(bytes);
-    return Size(image.width.toDouble(), image.height.toDouble());
+  bool _isSupportedImage(XFile imageFile) {
+    final lowerName = imageFile.name.toLowerCase();
+    return lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg') || lowerName.endsWith('.png');
   }
 
-  Future<ValidationResult> _validateSelfie(XFile imageFile) async {
-    final List<String> errorMessages = [];
-    bool isGenerallyValid = true;
-    final options = FaceDetectorOptions(enableClassification: true, enableLandmarks: true, minFaceSize: 0.1, performanceMode: FaceDetectorMode.accurate);
-    final faceDetector = FaceDetector(options: options);
-
-    try {
-      final bytes = await imageFile.readAsBytes();
-      final imageSize = await _getImageSize(imageFile);
-      final inputImage = InputImage.fromBytes(
-        bytes: bytes,
-        metadata: InputImageMetadata(
-          size: imageSize,
-          rotation: InputImageRotation.rotation0deg,
-          format: InputImageFormat.bgra8888,
-          bytesPerRow: imageSize.width.toInt() * 4,
-        ),
-      );
-      final List<Face> faces = await faceDetector.processImage(inputImage);
-
-      if (faces.isEmpty) {
-        errorMessages.add('No face detected.');
-        return ValidationResult(isValid: false, messages: errorMessages);
-      }
-      if (faces.length > 1) {
-        errorMessages.add('Multiple faces detected. Use a solo photo.');
-        isGenerallyValid = false;
-      }
-
-      final Face face = faces.first;
-      final faceWidthPercentage = face.boundingBox.width / imageSize.width;
-      if (faceWidthPercentage < 0.20) {
-        errorMessages.add('Face is too small. Move closer.');
-        isGenerallyValid = false;
-      }
-
-      if (face.headEulerAngleY != null && face.headEulerAngleY!.abs() > 25.0) {
-        errorMessages.add('Look directly at the camera.');
-        isGenerallyValid = false;
-      }
-
-      if (face.leftEyeOpenProbability != null && face.leftEyeOpenProbability! < 0.5) {
-        errorMessages.add('Keep both eyes open.');
-        isGenerallyValid = false;
-      }
-
-    } catch (e) {
-      errorMessages.add('Error analyzing image.');
-      isGenerallyValid = false;
-    } finally {
-      await faceDetector.close();
+  Future<String?> _validateSelectedFile(XFile imageFile) async {
+    if (!_isSupportedImage(imageFile)) {
+      return 'Please select a JPG or PNG image.';
     }
 
-    return ValidationResult(isValid: isGenerallyValid && errorMessages.isEmpty, messages: errorMessages);
+    try {
+      final fileSize = await File(imageFile.path).length();
+      const maxSizeInBytes = 10 * 1024 * 1024;
+      if (fileSize > maxSizeInBytes) {
+        return 'Image is too large. Please choose a file under 10 MB.';
+      }
+    } catch (_) {
+      // If size cannot be read, continue to the face validation step.
+    }
+
+    return null;
   }
 
   void _proceedToUpdate() async {
     if (_imageFile == null) return;
     setState(() => _isAnalyzing = true);
 
-    final ValidationResult validation = await _validateSelfie(_imageFile!);
-    setState(() => _isAnalyzing = false);
-
-    if (!validation.isValid) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Invalid Photo'),
-          content: Text(validation.messages.join('\n')),
-          actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
-        ),
+    final fileValidationMessage = await _validateSelectedFile(_imageFile!);
+    if (!mounted) return;
+    if (fileValidationMessage != null) {
+      setState(() => _isAnalyzing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(fileValidationMessage)),
       );
       return;
     }
 
-    // SUCCESS MOCK
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Face ID Updated Successfully!'), backgroundColor: Colors.green));
-    Navigator.pop(context);
+    setState(() => _isAnalyzing = true);
+    final accessToken = await getStudentAccessToken();
+    final updateResult = await ApiServices.updateStudentFace(
+      photoBytes: await _imageFile!.readAsBytes(),
+      photoFilename: _imageFile!.name,
+      prn: widget.prn,
+      accessToken: accessToken.isNotEmpty ? accessToken : null,
+    );
+
+    if (!mounted) return;
+    setState(() => _isAnalyzing = false);
+
+    if (updateResult['status'] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(updateResult['message']?.toString() ?? 'Student face updated successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.pop(context, true);
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Upload Failed'),
+        content: Text(updateResult['message']?.toString() ?? 'Failed to update face.'),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+      ),
+    );
   }
 
   void _showImageSourceActionSheet() {

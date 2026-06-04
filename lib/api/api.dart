@@ -428,13 +428,19 @@ class ApiServices {
     }
   }
 
-  static Future<List<StudentList>> getStudentList({required subjectID}) async {
+  static Future<List<StudentList>> getStudentList({
+    required subjectID,
+    int? divisionID,
+  }) async {
     String endpoint = '$_baseUrl/students/attendance/';
     final url = Uri.parse(endpoint);
 
     const header = {'Content-Type': 'application/json; charset=UTF-8'};
 
-    final body = jsonEncode({'subject_id': subjectID});
+    final body = jsonEncode({
+      'subject_id': subjectID,
+      if (divisionID != null) 'division_id': divisionID,
+    });
 
     try {
       final response = await http.post(url, headers: header, body: body);

@@ -419,7 +419,7 @@ class _HomeState extends ConsumerState<Home> {
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.people),
-          label: 'Students',
+          label: 'Subjects',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.fact_check_outlined),

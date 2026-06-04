@@ -49,7 +49,10 @@ class _StudentListPageState extends State<StudentListPage> {
 
   Future<List<StudentList>> loadStudents() async {
     final students =
-    await ApiServices.getStudentList(subjectID: widget.subject.id);
+    await ApiServices.getStudentList(
+      subjectID: widget.subject.id,
+      divisionID: widget.subject.divisionId,
+    );
 
     setState(() {
       _allStudents = students;

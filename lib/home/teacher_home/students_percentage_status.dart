@@ -206,7 +206,9 @@ class ProfessionalSubjectTile extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        subject.subjectName,
+                        (subject.divisionName != null && subject.divisionName!.trim().isNotEmpty)
+                            ? '${subject.subjectName} (${subject.divisionName})'
+                            : subject.subjectName,
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,

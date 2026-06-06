@@ -30,7 +30,7 @@ const List<Color> _avatarColors = [
   Color(0xFFF3BF43), // Golden Yellow
 ];
 
-class ClassSessionAttendance extends StatelessWidget {
+class ClassSessionAttendance extends StatefulWidget {
   final int sessionID;
   final String subjectName;
 
@@ -39,6 +39,79 @@ class ClassSessionAttendance extends StatelessWidget {
     required this.sessionID,
     required this.subjectName,
   });
+
+  @override
+  State<ClassSessionAttendance> createState() => _ClassSessionAttendanceState();
+}
+
+class _ClassSessionAttendanceState extends State<ClassSessionAttendance> {
+  List<String> _sessionPhotos = [];
+  bool _loadingPhotos = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSessionPhotos();
+  }
+
+  Future<void> _loadSessionPhotos() async {
+    try {
+      final photos = await ApiServices.getSessionPhotos(sessionID: widget.sessionID);
+      if (mounted) {
+        setState(() {
+          _sessionPhotos = photos;
+          _loadingPhotos = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loadingPhotos = false;
+        });
+      }
+    }
+  }
+
+  void _viewImageFullScreen(BuildContext context, String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(12),
+        child: Stack(
+          alignment: Alignment.topRight,
+          children: [
+            InteractiveViewer(
+              clipBehavior: Clip.none,
+              maxScale: 4.0,
+              child: Center(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.contain,
+                    loadingBuilder: (context, child, progress) =>
+                    progress == null ? child : const Center(child: CircularProgressIndicator(color: Colors.white)),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: CircleAvatar(
+                backgroundColor: Colors.black.withOpacity(0.5),
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,35 +127,97 @@ class ClassSessionAttendance extends StatelessWidget {
             onPressed: () => Navigator.of(context).pop(),
           ),
           title: Text(
-            subjectName,
+            widget.subjectName,
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.w600,
               fontSize: 18,
             ),
           ),
-          bottom: const TabBar(
-            indicatorColor: Colors.white,
-            indicatorWeight: 3.0,
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
-            labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            tabs: [
-              Tab(text: "Present Students"),
-              Tab(text: "Absent Students"),
-            ],
-          ),
         ),
-        body: TabBarView(
+        body: Column(
           children: [
-            StudentListContent(
-              sessionID: sessionID,
-              isAbsentView: false,
+            if (!_loadingPhotos && _sessionPhotos.isNotEmpty) ...[
+              Container(
+                width: double.infinity,
+                color: Colors.white,
+                padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
+                child: const Text(
+                  "Face Detection Results",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: primaryTextColor,
+                  ),
+                ),
+              ),
+              Container(
+                height: 150,
+                color: Colors.white,
+                padding: const EdgeInsets.only(bottom: 16.0),
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  itemCount: _sessionPhotos.length,
+                  itemBuilder: (context, index) {
+                    final photoUrl = _sessionPhotos[index];
+                    return GestureDetector(
+                      onTap: () => _viewImageFullScreen(context, photoUrl),
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 12.0),
+                        width: 110,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.08),
+                              blurRadius: 6,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.network(
+                            photoUrl,
+                            fit: BoxFit.cover,
+                            loadingBuilder: (context, child, progress) =>
+                            progress == null ? child : const Center(child: CircularProgressIndicator()),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+            const Material(
+              color: appThemeColor,
+              child: TabBar(
+                indicatorColor: Colors.white,
+                indicatorWeight: 3.0,
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.white70,
+                labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                tabs: [
+                  Tab(text: "Present Students"),
+                  Tab(text: "Absent Students"),
+                ],
+              ),
             ),
-
-            StudentListContent(
-              sessionID: sessionID,
-              isAbsentView: true,
+            Expanded(
+              child: TabBarView(
+                children: [
+                  StudentListContent(
+                    sessionID: widget.sessionID,
+                    isAbsentView: false,
+                  ),
+                  StudentListContent(
+                    sessionID: widget.sessionID,
+                    isAbsentView: true,
+                  ),
+                ],
+              ),
             ),
           ],
         ),

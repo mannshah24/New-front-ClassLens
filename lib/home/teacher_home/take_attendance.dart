@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:classlens/api/api.dart';
-import 'package:classlens/data_models/departments.dart';
-import 'package:classlens/data_models/subjects.dart';
+import 'package:classlens/data_models/teacher_subjects.dart';
+import 'package:classlens/global/global.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -27,110 +27,15 @@ class AttendanceUploadScreen extends StatefulWidget {
 
 class _AttendanceUploadScreenState extends State<AttendanceUploadScreen> {
   List<XFile> _imageFiles = [];
-  String? _selectedDepartment;
-  String? _selectedSubject;
-  int? _selectedSubjectID;
-  String? _selectedDivision;
-  int? _selectedDivisionID;
-  String? _selectedYear;
-  String? _selectedSemester;
   bool _isLoading = false;
-  late Future<List<Departments>> _departments;
-  List<Departments> _departmentLookup = [];
-  List<Subjects> _subjects = [];
-  List<Map<String, dynamic>> _divisions = [];
-  final List<String> _years = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
-  final List<String> _semesters = ['Semester 1', 'Semester 2'];
-  bool _isSubjectsLoading = false;
-  bool _isDivisionsLoading = false;
+
+  late Future<List<TeacherSubjects>> _teacherSubjectsFuture;
+  TeacherSubjects? _selectedTeacherSubject;
 
   @override
   void initState() {
     super.initState();
-    _departments = ApiServices.getDepartments().then((departments) {
-      _departmentLookup = departments;
-      return departments;
-    });
-  }
-
-  Future<void> _fetchSubjects() async{
-    if(_selectedDepartment!=null && _selectedSemester!=null && _selectedYear!=null){
-      setState(() {
-        _isSubjectsLoading=true;
-        _selectedSubject=null;
-        _selectedDivision=null;
-        _selectedDivisionID=null;
-        _subjects=[];
-        _divisions=[];
-      });
-      final int updatedYear = int.parse(_selectedYear!.replaceAll(RegExp(r'[^0-9]'), ''));
-      final int updatedSemester = int.parse(_selectedSemester!.replaceAll(RegExp(r'[^0-9]'), ''));
-      print(updatedSemester);
-      print(_selectedDepartment!+_selectedSemester!+_selectedYear!);
-      try{
-        final List<Subjects> fetchedSubject = await ApiServices.getSubjects(
-            departmentName: _selectedDepartment!,
-            year: updatedYear,
-            semester: updatedSemester
-        );
-
-        setState(() {
-          _isSubjectsLoading=false;
-          _subjects= fetchedSubject;
-        });
-      }
-      catch(e){
-        setState(() { _isSubjectsLoading = false; });
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error fetching subjects'))
-        );
-      }
-
-
-    }
-  }
-
-  Future<void> _fetchDivisions() async {
-    if (_selectedDepartment == null || _selectedYear == null || _selectedSemester == null) {
-      return;
-    }
-
-    setState(() {
-      _isDivisionsLoading = true;
-      _selectedDivision = null;
-      _selectedDivisionID = null;
-      _divisions = [];
-    });
-
-    try {
-      final fetchedDivisions = await ApiServices.getDivisions(
-        departmentName: _selectedDepartment!,
-        year: int.tryParse(_selectedYear!.replaceAll(RegExp(r'[^0-9]'), '')),
-        semester: int.tryParse(_selectedSemester!.replaceAll(RegExp(r'[^0-9]'), '')),
-      );
-
-      setState(() {
-        _divisions = fetchedDivisions.where((division) {
-          final divisionYear = int.tryParse(division['year'].toString());
-          final divisionSemester = int.tryParse(division['semester'].toString());
-          return (divisionYear == null || divisionYear == int.tryParse(_selectedYear!.replaceAll(RegExp(r'[^0-9]'), ''))) &&
-              (divisionSemester == null || divisionSemester == int.tryParse(_selectedSemester!.replaceAll(RegExp(r'[^0-9]'), '')));
-        }).toList();
-        _isDivisionsLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isDivisionsLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error fetching divisions')),
-      );
-    }
-  }
-
-  String _divisionLabel(Map<String, dynamic> division) {
-    final name = division['name']?.toString() ?? 'Division';
-    return name;
+    _teacherSubjectsFuture = ApiServices.getTeacherSubjects(teacherID: userID);
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -237,11 +142,7 @@ class _AttendanceUploadScreenState extends State<AttendanceUploadScreen> {
   }
 
   Future<void> _submitAttendance() async {
-    if (_imageFiles.isEmpty ||
-        _selectedDepartment == null ||
-        _selectedYear == null ||
-        _selectedSemester == null||
-        _selectedSubjectID==null) {
+    if (_imageFiles.isEmpty || _selectedTeacherSubject == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please complete all required fields to proceed.'),
@@ -251,41 +152,38 @@ class _AttendanceUploadScreenState extends State<AttendanceUploadScreen> {
       return;
     }
 
-    else {
-      try {
-        final int updatedYear = int.parse(_selectedYear!.replaceAll(RegExp(r'[^0-9]'), ''));
-        final int updatedSemester = int.parse(_selectedSemester!.replaceAll(RegExp(r'[^0-9]'), ''));
+    try {
+      setState(() {
+        _isLoading = true;
+      });
 
-        // 2. Navigate to the new processing screen and wait for a result
-        final result = await Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => ProcessingScreen(
-              imageFiles: _imageFiles.map((x) => File(x.path)).toList(),
-              departmentName: _selectedDepartment!,
-              semester: updatedSemester,
-              year: updatedYear,
-              subject: _selectedSubject!,
-              subjectID:_selectedSubjectID!,
-              divisionID: _selectedDivisionID,
-            ),
+      final result = await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => ProcessingScreen(
+            imageFiles: _imageFiles.map((x) => File(x.path)).toList(),
+            departmentName: _selectedTeacherSubject!.departmentName ?? '',
+            semester: _selectedTeacherSubject!.semester ?? 1,
+            year: _selectedTeacherSubject!.year ?? 1,
+            subject: _selectedTeacherSubject!.subjectName,
+            subjectID: _selectedTeacherSubject!.id,
+            divisionID: _selectedTeacherSubject!.divisionId,
           ),
-        );
-        if (result != null && result is String && mounted) {
-
-          Navigator.of(context).pop(result);
-
-        }
+        ),
+      );
+      if (result != null && result is String && mounted) {
+        Navigator.of(context).pop(result);
       }
-      catch(e){
-        print(e.toString());
-      }
-      finally{
+    }
+    catch(e){
+      print(e.toString());
+    }
+    finally{
+      if (mounted) {
         setState(() {
           _isLoading = false;
         });
       }
     }
-
   }
 
   @override
@@ -330,253 +228,66 @@ class _AttendanceUploadScreenState extends State<AttendanceUploadScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              FutureBuilder<List<Departments>>(
-                future: _departments,
+              FutureBuilder<List<TeacherSubjects>>(
+                future: _teacherSubjectsFuture,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24.0),
+                        child: CircularProgressIndicator(strokeWidth: 2.5),
+                      ),
+                    );
                   } else if (snapshot.hasError) {
-                    return Text('Unable to fetch departments: ${snapshot.error}');
+                    return Text(
+                      'Unable to fetch assigned classes: ${snapshot.error}',
+                      style: const TextStyle(color: attentionColor),
+                    );
                   }
+                  
                   if (snapshot.hasData) {
-                    final List<Departments> departmentsList = snapshot.data!;
-                    final List<String> departmentNames = departmentsList
-                        .map((department) => department.departmentName)
-                        .toList();
+                    final subjectsList = snapshot.data!;
+                    if (subjectsList.isEmpty) {
+                      return Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: borderColor),
+                        ),
+                        child: const Column(
+                          children: [
+                            Icon(Icons.info_outline_rounded, color: attentionColor, size: 40),
+                            SizedBox(height: 12),
+                            Text(
+                              'No assigned classes found. Please contact your administrator.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: secondaryTextColor, fontSize: 15),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
                     return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _buildDropdown(
-                          icon: Icons.school_outlined,
-                          hint: 'Department',
-                          value: _selectedDepartment,
-                          items: departmentNames,
-
-                          // onChanged: (value) {
-                          //   setState(() => _selectedDepartment = value);
-                          //   _fetchSubjects();
-                          // },
-
-                          onChanged: (value) {
-                          setState(() {
-                            _selectedDepartment = value;
-                        
-                            // Reset dependent selections
-                            _selectedSubject = null;
-                            _selectedSubjectID = null;
-                            _selectedDivision = null;
-                            _selectedDivisionID = null;
-                          });
-                        
-                          _fetchSubjects();
-                          _fetchDivisions();
-                         },
-                        ),
-                        const SizedBox(height: 16),
-                        _buildDropdown(
-                          icon: Icons.format_list_numbered,
-                          hint: 'Year',
-                          value: _selectedYear,
-                          items: _years,
-                          // onChanged: (value) {
-                          //   setState(() => _selectedYear = value);
-                          //   _fetchSubjects();
-                          // },
-                          onChanged: (value) {
-                            setState(() {
-                              _selectedYear = value;
-                          
-                              // Reset dependent selections
-                              _selectedSubject = null;
-                              _selectedSubjectID = null;
-                              _selectedDivision = null;
-                              _selectedDivisionID = null;
-                            });
-                          
-                            _fetchSubjects();
-                            _fetchDivisions();
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        _buildDropdown(
-                          icon: Icons.calendar_today_outlined,
-                          hint: 'Semester',
-                          value: _selectedSemester,
-                          items: _semesters,
-                          // onChanged: (value) {
-                          //   setState(() => _selectedSemester = value);
-                          //   _fetchSubjects();
-                          // },
-                          onChanged: (value) {
-                           setState(() {
-                             _selectedSemester = value;
-                         
-                             // Reset dependent selections
-                             _selectedSubject = null;
-                             _selectedSubjectID = null;
-                             _selectedDivision = null;
-                             _selectedDivisionID = null;
-                           });
-                         
-                           _fetchSubjects();
-                           _fetchDivisions();
-                         },
-                        ),
-                        const SizedBox(height: 16),
-                        if (_isSubjectsLoading)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 16.0),
-                            child: CircularProgressIndicator(),
-                          )
-                        else
-                          _buildDropdown(
-                            icon: Icons.subject,
-                            hint: 'Subject',
-                            value: _selectedSubject,
-                            items: _subjects.map((s) => s.name).toList(),
-                            // onChanged: _subjects.isEmpty
-                            //     ? null
-                            //     : (value) {
-                            //     if(value==null){
-                            //       setState(() {
-                            //         _selectedSubjectID=null;
-                            //         _selectedSubject=null;
-                            //         _selectedDivisionID=null;
-                            //         _selectedDivision=null;
-                            //         _divisions=[];
-                            //       });
-                            //     }else{
-                            //       final selectedSubject = _subjects.firstWhere((s)=>s.name==value);
-                            //       setState(() {
-                            //         _selectedSubject=selectedSubject.name;
-                            //         _selectedSubjectID=selectedSubject.id;
-                            //       });
-                            //       _fetchDivisions();
-                            //     }
-                            //     setState(() => _selectedSubject = value);
-                            // },
-                            onChanged: _subjects.isEmpty
-                          ? null
-                          : (value) {
-                              if (value == null) {
-                                setState(() {
-                                  _selectedSubject = null;
-                                  _selectedSubjectID = null;
-                                });
-                              } else {
-                                final selectedSubject =
-                                    _subjects.firstWhere((s) => s.name == value);
-                      
-                                setState(() {
-                                  _selectedSubject = selectedSubject.name;
-                                  _selectedSubjectID = selectedSubject.id;
-                                });
-                              }
-                            },
+                        const Text(
+                          'Select Class / Subject',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: primaryTextColor,
                           ),
-                          const SizedBox(height: 16),
-                          if (_selectedDepartment == null || _selectedYear == null || _selectedSemester == null)
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: borderColor),
-                              ),
-                              child: const Text(
-                                'Select department, year, and semester to load available divisions.',
-                                style: TextStyle(color: secondaryTextColor),
-                              ),
-                            )
-                          else if (_isDivisionsLoading)
-                            const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 16.0),
-                              child: CircularProgressIndicator(),
-                            )
-                          else
-                            DropdownButtonFormField<int>(
-                              value: _selectedDivisionID,
-                              hint: const Text('Division (optional)'),
-                              isExpanded: true,
-                              items: _divisions
-                                  .map((division) {
-                                    final idValue = division['id'] is int
-                                        ? division['id'] as int
-                                        : int.tryParse(division['id'].toString());
-                                    if (idValue == null) {
-                                      return null;
-                                    }
-                                    return DropdownMenuItem<int>(
-                                      value: idValue,
-                                      child: Text(
-                                        _divisionLabel(division),
-                                        overflow: TextOverflow.ellipsis,
-                                        maxLines: 2,
-                                      ),
-                                    );
-                                  })
-                                  .whereType<DropdownMenuItem<int>>()
-                                  .toList(),
-                              onChanged: _divisions.isEmpty
-                                  ? null
-                                  : (value) {
-                                      setState(() {
-                                        _selectedDivisionID = value;
-                                        _selectedDivision = value == null
-                                            ? null
-                                            : _divisions
-                                                .firstWhere(
-                                                  (division) => (division['id'] is int
-                                                      ? division['id'] as int
-                                                      : int.tryParse(division['id'].toString())) == value,
-                                                  orElse: () => <String, dynamic>{},
-                                                )['name']
-                                                ?.toString();
-                                      });
-                                    },
-                              dropdownColor: cardBackgroundColor,
-                              borderRadius: BorderRadius.circular(16.0),
-                              icon: const Icon(
-                                Icons.arrow_drop_down_rounded,
-                                color: secondaryTextColor,
-                              ),
-                              decoration: InputDecoration(
-                                labelText: 'Division (optional)',
-                                labelStyle: const TextStyle(color: secondaryTextColor),
-                                floatingLabelStyle: const TextStyle(
-                                  color: accentColor,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                prefixIcon: const Icon(Icons.groups_outlined, color: accentColor),
-                                filled: true,
-                                fillColor: Colors.white,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                  vertical: 18,
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(16.0),
-                                  borderSide: const BorderSide(color: borderColor),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(16.0),
-                                  borderSide: const BorderSide(color: borderColor),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(16.0),
-                                  borderSide: const BorderSide(color: accentColor, width: 2.0),
-                                ),
-                              ),
-                            ),
-                          if (_divisions.isEmpty && !_isDivisionsLoading && _selectedDepartment != null && _selectedYear != null && _selectedSemester != null)
-                            const Padding(
-                              padding: EdgeInsets.only(top: 8.0),
-                              child: Text(
-                                'No divisions found for the selected class details. You can still submit attendance without a division.',
-                                style: TextStyle(color: secondaryTextColor, fontSize: 12),
-                              ),
-                            ),
-                        const SizedBox(height: 32),
+                        ),
+                        const SizedBox(height: 12),
+                        ...subjectsList.map((subject) {
+                          final isSelected = _selectedTeacherSubject?.id == subject.id &&
+                              _selectedTeacherSubject?.divisionId == subject.divisionId;
+                          return _buildSelectableSubjectCard(subject, isSelected);
+                        }).toList(),
+                        const SizedBox(height: 24),
                       ],
                     );
                   }
@@ -747,77 +458,139 @@ class _AttendanceUploadScreenState extends State<AttendanceUploadScreen> {
     );
   }
 
-  Widget _buildDropdown({
-    required IconData icon,
-    required String hint,
-    required String? value,
-    required List<String> items,
-    required ValueChanged<String?>? onChanged,
-  }) {
-    return DropdownButtonFormField<String>(
-      value: value,
-      isExpanded: true,
-      items: items
-          .map(
-            (item) => DropdownMenuItem<String>(
-              value: item,
-              child: Text(
-                item,
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-            ),
-          )
-          .toList(),
-      selectedItemBuilder: (BuildContext context) {
-        return items.map<Widget>((String item) {
-          return Text(
-            item,
-            overflow: TextOverflow.ellipsis,
-            maxLines: 1,
-          );
-        }).toList();
-      },
-      onChanged: onChanged,
+  Widget _buildSelectableSubjectCard(TeacherSubjects subject, bool isSelected) {
+    final displayName = (subject.divisionName != null && subject.divisionName!.trim().isNotEmpty)
+        ? '${subject.subjectName} (${subject.divisionName})'
+        : subject.subjectName;
 
-      dropdownColor: cardBackgroundColor,
-      borderRadius: BorderRadius.circular(16.0),
-
-      icon: const Icon(
-        Icons.arrow_drop_down_rounded,
-        color: secondaryTextColor,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12.0),
+      decoration: BoxDecoration(
+        color: isSelected ? accentColor.withOpacity(0.05) : cardBackgroundColor,
+        borderRadius: BorderRadius.circular(16.0),
+        border: Border.all(
+          color: isSelected ? accentColor : borderColor,
+          width: isSelected ? 2.0 : 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      decoration: InputDecoration(
-        labelText: hint,
-        labelStyle: const TextStyle(color: secondaryTextColor),
-        floatingLabelStyle: const TextStyle(
-          color: accentColor,
-          fontWeight: FontWeight.bold,
-        ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16.0),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16.0),
+          onTap: () {
+            setState(() {
+              _selectedTeacherSubject = subject;
+            });
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12.0),
+                  decoration: BoxDecoration(
+                    color: isSelected ? accentColor : borderColor.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(12.0),
+                  ),
+                  child: Icon(
+                    Icons.menu_book_rounded,
+                    color: isSelected ? Colors.white : secondaryTextColor,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        displayName,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: primaryTextColor,
+                        ),
 
-        prefixIcon: Icon(icon, color: accentColor),
-
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 18,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16.0),
-          borderSide: const BorderSide(color: borderColor),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16.0),
-          borderSide: const BorderSide(color: borderColor),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16.0),
-          borderSide: const BorderSide(color: accentColor, width: 2.0),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${subject.subjectCode} • ${subject.departmentName ?? "N/A"}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: secondaryTextColor,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.people_outline_rounded,
+                              color: secondaryTextColor,
+                              size: 14,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${subject.strength} Students',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: secondaryTextColor,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Icon(
+                              Icons.calendar_today_outlined,
+                              color: secondaryTextColor,
+                              size: 14,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${_ordinalYear(subject.year)} Year • Sem ${subject.semester ?? "N/A"}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: secondaryTextColor,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (isSelected)
+                  const Icon(
+                    Icons.check_circle,
+                    color: accentColor,
+                    size: 26,
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
+
+  String _ordinalYear(int? year) {
+    if (year == 1) return '1st';
+    if (year == 2) return '2nd';
+    if (year == 3) return '3rd';
+    if (year == 4) return '4th';
+    return year?.toString() ?? 'N/A';
+  }
+
 
   Widget _buildSubmitButton() {
     return Container(

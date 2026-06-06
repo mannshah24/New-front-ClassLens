@@ -20,28 +20,38 @@ class NotificationTaskItem extends ConsumerWidget {
     super.key,
   });
 
-  String? _extractImageUrl(dynamic payload) {
+  List<String> _extractImageUrls(dynamic payload) {
     if (payload == null) {
-      return null;
+      return [];
     }
 
     if (payload is String) {
       final value = payload.trim();
-      return value.isEmpty ? null : value;
+      return value.isEmpty ? [] : [value];
     }
 
     if (payload is List) {
+      final list = <String>[];
       for (final item in payload) {
-        final url = _extractImageUrl(item);
-        if (url != null) {
-          return url;
-        }
+        list.addAll(_extractImageUrls(item));
       }
-      return null;
+      return list;
     }
 
     if (payload is Map) {
       final map = payload.cast<dynamic, dynamic>();
+      
+      final imageUrls = map['image_urls'];
+      if (imageUrls is List) {
+        final list = <String>[];
+        for (final item in imageUrls) {
+          if (item is String && item.trim().isNotEmpty) {
+            list.add(item.trim());
+          }
+        }
+        if (list.isNotEmpty) return list;
+      }
+
       const directKeys = [
         'image_url',
         'image',
@@ -55,28 +65,19 @@ class NotificationTaskItem extends ConsumerWidget {
       for (final key in directKeys) {
         final value = map[key];
         if (value is String && value.trim().isNotEmpty) {
-          return value.trim();
-        }
-      }
-
-      final imageUrls = map['image_urls'];
-      if (imageUrls is List) {
-        for (final item in imageUrls) {
-          if (item is String && item.trim().isNotEmpty) {
-            return item.trim();
-          }
+          return [value.trim()];
         }
       }
 
       for (final value in map.values) {
-        final nested = _extractImageUrl(value);
-        if (nested != null) {
+        final nested = _extractImageUrls(value);
+        if (nested.isNotEmpty) {
           return nested;
         }
       }
     }
 
-    return null;
+    return [];
   }
 
   String _toAbsoluteImageUrl(String rawUrl) {
@@ -95,26 +96,77 @@ class NotificationTaskItem extends ConsumerWidget {
     return '$origin/$url';
   }
 
-  void _showResultImage(BuildContext context, String imageUrl) {
+  void _showResultImages(BuildContext context, List<String> imageUrls) {
+    int activeIndex = 0;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        contentPadding: const EdgeInsets.all(12),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text("Attendance Result", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            const SizedBox(height: 16),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                imageUrl,
-                loadingBuilder: (context, child, progress) =>
-                progress == null ? child : const Center(child: CircularProgressIndicator()),
-              ),
-            ),
-          ],
+        contentPadding: const EdgeInsets.all(16),
+        content: StatefulBuilder(
+          builder: (context, setState) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text("Attendance Result", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      constraints: const BoxConstraints(),
+                      padding: EdgeInsets.zero,
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  height: 300,
+                  width: double.maxFinite,
+                  child: PageView.builder(
+                    itemCount: imageUrls.length,
+                    onPageChanged: (index) {
+                      setState(() {
+                        activeIndex = index;
+                      });
+                    },
+                    itemBuilder: (context, index) {
+                      return InteractiveViewer(
+                        clipBehavior: Clip.none,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.network(
+                            imageUrls[index],
+                            fit: BoxFit.contain,
+                            loadingBuilder: (context, child, progress) =>
+                            progress == null ? child : const Center(child: CircularProgressIndicator()),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                if (imageUrls.length > 1) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(imageUrls.length, (index) {
+                      return Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4.0),
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: activeIndex == index ? accentColor : Colors.grey.withOpacity(0.5),
+                        ),
+                      );
+                    }),
+                  ),
+                ]
+              ],
+            );
+          }
         ),
       ),
     );
@@ -153,9 +205,9 @@ class NotificationTaskItem extends ConsumerWidget {
         child: const Text("View", style: TextStyle(fontWeight: FontWeight.bold)),
         onPressed: () {
           if (!isRead) taskManager.markAllRead();
-          final rawImageUrl = _extractImageUrl(status.result);
-          if (rawImageUrl != null) {
-            _showResultImage(context, _toAbsoluteImageUrl(rawImageUrl));
+          final rawImageUrls = _extractImageUrls(status.result);
+          if (rawImageUrls.isNotEmpty) {
+            _showResultImages(context, rawImageUrls.map(_toAbsoluteImageUrl).toList());
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(

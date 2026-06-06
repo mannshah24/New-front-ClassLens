@@ -567,6 +567,23 @@ class ApiServices {
     return [];
   }
 
+  static Future<List<String>> getSessionPhotos({required int sessionID}) async {
+    final endpoint = Uri.parse('$_baseUrl/getSessionPhotos/$sessionID/');
+    try {
+      final response = await http.get(endpoint);
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          final List<dynamic> photos = decoded['photos'] ?? [];
+          return photos.map<String>((p) => p['detected_url'] as String).toList();
+        }
+      }
+    } catch (e) {
+      print('getSessionPhotos failed: ${e.toString()}');
+    }
+    return [];
+  }
+
   static Future<List<PresentAbsenteesStudents>> getPresentAbsentStudents({
     required sessionID,
     required bool isPresent,

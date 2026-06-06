@@ -16,6 +16,7 @@ class ProcessingScreen extends StatefulWidget {
   final String subject;
   final int subjectID;
   final int? divisionID;
+  final int? classSessionID;
 
   const ProcessingScreen({
     super.key,
@@ -26,6 +27,7 @@ class ProcessingScreen extends StatefulWidget {
     required this.subject,
     required this.subjectID,
     this.divisionID,
+    this.classSessionID,
   });
 
   @override
@@ -41,16 +43,23 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
 
   Future<void> _startUpload() async {
     try {
-
-      Map<String,dynamic> returnedUrl = await ApiServices.markAttendance(
-        imageFiles: widget.imageFiles,
-        departmentName: widget.departmentName,
-        semester: widget.semester,
-        year: widget.year,
-        subject: widget.subject,
-        subjectID: widget.subjectID,
-        divisionID: widget.divisionID,
-      );
+      final Map<String, dynamic> returnedUrl;
+      if (widget.classSessionID != null) {
+        returnedUrl = await ApiServices.resubmitAttendance(
+          sessionID: widget.classSessionID!,
+          imageFiles: widget.imageFiles,
+        );
+      } else {
+        returnedUrl = await ApiServices.markAttendance(
+          imageFiles: widget.imageFiles,
+          departmentName: widget.departmentName,
+          semester: widget.semester,
+          year: widget.year,
+          subject: widget.subject,
+          subjectID: widget.subjectID,
+          divisionID: widget.divisionID,
+        );
+      }
 
       if (mounted) {
         final taskID = returnedUrl['task_id']?.toString();

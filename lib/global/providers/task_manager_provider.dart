@@ -171,7 +171,13 @@ class TaskManagerNotifier extends Notifier<List<UserTask>> {
           classSessionBox.put(classSessionID, newStats);
           print("updateTaskStatus ($taskID): Saved new ID $classSessionID to Hive.");
         } else {
-          print("updateTaskStatus ($taskID): ID $classSessionID already exists in Hive list.");
+          final existing = classSessionBox.get(classSessionID);
+          if (existing != null) {
+            existing.presentCount = presentCount;
+            existing.absentCount = absentCount;
+            existing.save();
+            print("updateTaskStatus ($taskID): Updated existing ID $classSessionID in Hive.");
+          }
         }
       }
     }

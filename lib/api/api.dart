@@ -338,6 +338,47 @@ class ApiServices {
     }
   }
 
+  static Future<Map<String, dynamic>> resubmitAttendance({
+    required final int sessionID,
+    required final List<File> imageFiles,
+  }) async {
+    String endpoint = '$_baseUrl/resubmitAttendance/';
+    final url = Uri.parse(endpoint);
+    try {
+      final request = http.MultipartRequest('POST', url);
+      request.fields['class_session_id'] = sessionID.toString();
+
+      for (final image in imageFiles) {
+        request.files.add(
+          await http.MultipartFile.fromPath('photo', image.path),
+        );
+      }
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200 || response.statusCode == 202) {
+        final responseData = json.decode(response.body);
+        return {
+          "message": responseData['message'] ?? "Task initiated",
+          "task_id": responseData["task_id"]
+        };
+      } else {
+        String errorMessage = 'Failed to resubmit attendance: ${response.statusCode}';
+        try {
+          final responseData = json.decode(response.body);
+          if (responseData != null && responseData['error'] != null) {
+            errorMessage = responseData['error'];
+          }
+        } catch (_) {}
+        return {"message": errorMessage, "task_id": null};
+      }
+    } catch (e) {
+      print("Exception in resubmitAttendance: ${e.toString()}");
+      return {"message": e.toString(), "task_id": null};
+    }
+  }
+
   static Future<TaskStatus> checkTaskStatus({required taskID}) async {
     String endpoint = '$_baseUrl/attendanceStatus/$taskID/';
 

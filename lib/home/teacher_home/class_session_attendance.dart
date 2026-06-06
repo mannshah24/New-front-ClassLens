@@ -2,7 +2,12 @@ import 'package:classlens/data_models/class_session_data.dart';
 import 'package:classlens/global/global.dart';
 import 'package:flutter/material.dart';
 import 'package:classlens/api/api.dart';
+import 'package:image_picker/image_picker.dart';
 import 'dart:ui';
+import 'dart:io';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:classlens/global/providers/task_manager_provider.dart';
+import 'package:classlens/home/teacher_home/processing_screen.dart';
 
 import 'package:lottie/lottie.dart';
 
@@ -30,7 +35,7 @@ const List<Color> _avatarColors = [
   Color(0xFFF3BF43), // Golden Yellow
 ];
 
-class ClassSessionAttendance extends StatefulWidget {
+class ClassSessionAttendance extends ConsumerStatefulWidget {
   final int sessionID;
   final String subjectName;
 
@@ -41,10 +46,10 @@ class ClassSessionAttendance extends StatefulWidget {
   });
 
   @override
-  State<ClassSessionAttendance> createState() => _ClassSessionAttendanceState();
+  ConsumerState<ClassSessionAttendance> createState() => _ClassSessionAttendanceState();
 }
 
-class _ClassSessionAttendanceState extends State<ClassSessionAttendance> {
+class _ClassSessionAttendanceState extends ConsumerState<ClassSessionAttendance> {
   List<String> _sessionPhotos = [];
   bool _loadingPhotos = true;
 
@@ -70,6 +75,228 @@ class _ClassSessionAttendanceState extends State<ClassSessionAttendance> {
         });
       }
     }
+  }
+
+  Future<void> _uploadMorePhotos(BuildContext context) async {
+    List<XFile> selectedImages = [];
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: cardBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24.0)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) {
+          Future<void> pickImages(ImageSource source) async {
+            final picker = ImagePicker();
+            if (source == ImageSource.gallery) {
+              final picked = await picker.pickMultiImage(imageQuality: 85);
+              if (picked.isNotEmpty) {
+                setModalState(() {
+                  selectedImages.addAll(picked);
+                  if (selectedImages.length > 3) {
+                    selectedImages = selectedImages.sublist(0, 3);
+                  }
+                });
+              }
+            } else {
+              final picked = await picker.pickImage(source: source, imageQuality: 85);
+              if (picked != null) {
+                setModalState(() {
+                  if (selectedImages.length < 3) {
+                    selectedImages.add(picked);
+                  }
+                });
+              }
+            }
+          }
+          
+          return Padding(
+            padding: EdgeInsets.fromLTRB(16.0, 16.0, 16.0, MediaQuery.of(context).padding.bottom + 16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      "Select Additional Images",
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryTextColor),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.of(context).pop(),
+                    )
+                  ],
+                ),
+                const SizedBox(height: 16),
+                if (selectedImages.isNotEmpty)
+                  SizedBox(
+                    height: 120,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: selectedImages.length + (selectedImages.length < 3 ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index == selectedImages.length) {
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8.0),
+                            child: GestureDetector(
+                              onTap: () {
+                                _showPickerOptions(context, pickImages);
+                              },
+                              child: Container(
+                                width: 90,
+                                height: 120,
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: dividerColor, width: 2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(Icons.add_a_photo_outlined, color: secondaryTextColor),
+                              ),
+                            ),
+                          );
+                        }
+                        return Stack(
+                          children: [
+                            Container(
+                              margin: const EdgeInsets.only(right: 8.0),
+                              width: 90,
+                              height: 120,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                image: DecorationImage(
+                                  image: FileImage(File(selectedImages[index].path)),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              top: 4,
+                              right: 12,
+                              child: GestureDetector(
+                                onTap: () {
+                                  setModalState(() {
+                                    selectedImages.removeAt(index);
+                                  });
+                                },
+                                child: CircleAvatar(
+                                  radius: 10,
+                                  backgroundColor: Colors.black.withOpacity(0.6),
+                                  child: const Icon(Icons.close, color: Colors.white, size: 12),
+                                ),
+                              ),
+                            )
+                          ],
+                        );
+                      },
+                    ),
+                  )
+                else
+                  GestureDetector(
+                    onTap: () {
+                      _showPickerOptions(context, pickImages);
+                    },
+                    child: Container(
+                      height: 120,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: dividerColor, width: 2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.cloud_upload_outlined, size: 40, color: secondaryTextColor),
+                          SizedBox(height: 8),
+                          Text("Tap to select photos (Max 3)", style: TextStyle(color: secondaryTextColor)),
+                        ],
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: selectedImages.isEmpty ? null : () async {
+                    Navigator.of(context).pop(selectedImages);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: appThemeColor,
+                    disabledBackgroundColor: appThemeColor.withOpacity(0.4),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text(
+                    "Submit Rescanned Photos",
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+      ),
+    ).then((result) async {
+      if (result != null && result is List<XFile> && result.isNotEmpty && mounted) {
+        final taskID = await Navigator.of(context).push<String>(
+          MaterialPageRoute(
+            builder: (context) => ProcessingScreen(
+              imageFiles: result.map((x) => File(x.path)).toList(),
+              classSessionID: widget.sessionID,
+              departmentName: '',
+              semester: 1,
+              year: 1,
+              subject: widget.subjectName,
+              subjectID: 0,
+            ),
+          ),
+        );
+        
+        if (taskID != null && mounted) {
+          if (taskID.startsWith("Error")) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(taskID), backgroundColor: attentionColor),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Additional photos submitted successfully! Processing in background."),
+                backgroundColor: successColor,
+              ),
+            );
+            ref.read(taskManagerProvider.notifier).addTask(taskID);
+          }
+        }
+      }
+    });
+  }
+
+  void _showPickerOptions(BuildContext context, Function(ImageSource) onPick) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined, color: appThemeColor),
+              title: const Text("Choose from Gallery"),
+              onTap: () {
+                Navigator.of(context).pop();
+                onPick(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined, color: appThemeColor),
+              title: const Text("Take a Photo"),
+              onTap: () {
+                Navigator.of(context).pop();
+                onPick(ImageSource.camera);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _viewImageFullScreen(BuildContext context, String imageUrl) {
@@ -211,15 +438,26 @@ class _ClassSessionAttendanceState extends State<ClassSessionAttendance> {
                   StudentListContent(
                     sessionID: widget.sessionID,
                     isAbsentView: false,
+                    onRefresh: _loadSessionPhotos,
                   ),
                   StudentListContent(
                     sessionID: widget.sessionID,
                     isAbsentView: true,
+                    onRefresh: _loadSessionPhotos,
                   ),
                 ],
               ),
             ),
           ],
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () => _uploadMorePhotos(context),
+          backgroundColor: appThemeColor,
+          icon: const Icon(Icons.add_a_photo, color: Colors.white),
+          label: const Text(
+            "Rescan / Add Photos",
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
         ),
       ),
     );
@@ -229,11 +467,13 @@ class _ClassSessionAttendanceState extends State<ClassSessionAttendance> {
 class StudentListContent extends StatefulWidget {
   final int sessionID;
   final bool isAbsentView;
+  final VoidCallback? onRefresh;
 
   const StudentListContent({
     super.key,
     required this.sessionID,
     required this.isAbsentView,
+    this.onRefresh,
   });
 
   @override
@@ -285,6 +525,7 @@ class _StudentListContentState extends State<StudentListContent> with AutomaticK
         _filteredList = students;
         _isLoading = false;
       });
+      widget.onRefresh?.call();
     }
   }
 

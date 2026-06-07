@@ -1055,4 +1055,32 @@ class ApiServices {
       return false;
     }
   }
+
+  /// Fetches the daily schedule from the backend, containing holiday information.
+  static Future<Map<String, dynamic>> getDailySchedule() async {
+    String endpoint = "$_baseUrl/schedule/daily/";
+    final url = Uri.parse(endpoint);
+
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is Map<String, dynamic>) {
+          return data;
+        }
+      }
+      return {
+        'is_holiday': false,
+        'holiday_name': null,
+        'sessions': [],
+      };
+    } catch (e) {
+      print("Error fetching daily schedule: $e");
+      return {
+        'is_holiday': false,
+        'holiday_name': null,
+        'sessions': [],
+      };
+    }
+  }
 }

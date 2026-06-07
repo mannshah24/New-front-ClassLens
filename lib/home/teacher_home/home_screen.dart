@@ -50,8 +50,19 @@ class _HomeState extends ConsumerState<Home> {
   int _selectedIndex = 0;
   String? _displayTeacherName;
 
+  bool _isLoadingHoliday = true;
+  bool _isHoliday = false;
+  String _holidayName = '';
 
-  late final List<Widget> _pages;
+  List<Widget> get _pages => <Widget>[
+    _buildHomeTab(),
+
+    //page 1 student page
+    StudentsPercentageStatus(teacherName: widget.teacherName, teacherID: widget.teacherID),
+
+    //page 2
+    AttendanceResult(teacherID: widget.teacherID),
+  ];
 
   @override
   void initState(){
@@ -59,9 +70,94 @@ class _HomeState extends ConsumerState<Home> {
     requestNotificationPermissions();
     _displayTeacherName = widget.teacherName ?? userName;
     _loadTeacherProfileName();
+    _checkHolidayStatus();
+  }
 
-    _pages = <Widget>[
-      SingleChildScrollView(
+  Future<void> _checkHolidayStatus() async {
+    try {
+      final response = await ApiServices.getDailySchedule();
+      if (mounted) {
+        setState(() {
+          _isHoliday = response['is_holiday'] ?? false;
+          if (_isHoliday) {
+            _holidayName = response['holiday_name'] ?? '';
+          }
+          _isLoadingHoliday = false;
+        });
+      }
+    } catch (e) {
+      print("Error checking holiday status: $e");
+      if (mounted) {
+        setState(() {
+          _isLoadingHoliday = false;
+        });
+      }
+    }
+  }
+
+  Widget _buildHomeTab() {
+    if (_isLoadingHoliday) {
+      return const Center(
+        child: CircularProgressIndicator(color: accentColor),
+      );
+    }
+
+    if (_isHoliday) {
+      return RefreshIndicator(
+        onRefresh: _checkHolidayStatus,
+        color: accentColor,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Container(
+            constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height - kToolbarHeight - MediaQuery.of(context).padding.top - 80,
+            ),
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Lottie.asset('assets/animations/holiday_chill.json', height: 200),
+                const SizedBox(height: 24),
+                const Text(
+                  "No Classes Today!",
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: primaryTextColor,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  "Today is marked as $_holidayName.",
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: secondaryTextColor,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  "Attendance taking is disabled for today.",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: attentionColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _checkHolidayStatus,
+      color: accentColor,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -75,13 +171,7 @@ class _HomeState extends ConsumerState<Home> {
           ],
         ),
       ),
-
-      //page 1 student page
-      StudentsPercentageStatus(teacherName: widget.teacherName,teacherID: widget.teacherID,),
-
-      //page 2
-      AttendanceResult(teacherID: widget.teacherID),
-    ];
+    );
   }
 
   Future<void> _loadTeacherProfileName() async {
@@ -184,6 +274,16 @@ class _HomeState extends ConsumerState<Home> {
   }
 
   Future<void> _requestCameraPermission() async {
+    if (_isHoliday) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Cannot take attendance. Today is marked as $_holidayName."),
+          backgroundColor: attentionColor,
+        ),
+      );
+      return;
+    }
+
     final status = await Permission.camera.request();
 
     if(status.isGranted && mounted){

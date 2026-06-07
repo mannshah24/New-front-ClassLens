@@ -1,5 +1,4 @@
 # ClassLens
-# ClassLens
 
 ClassLens is a comprehensive Flutter application designed to streamline classroom management for teachers. It provides tools for tracking attendance, managing class sessions, and viewing student and subject details.
 

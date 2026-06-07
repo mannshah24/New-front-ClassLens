@@ -6,6 +6,7 @@ import 'package:classlens/data_models/subjects.dart';
 import 'student_colors.dart';
 import 'subject_detail_screen.dart';
 import 'attendance_record_utils.dart';
+import 'package:lottie/lottie.dart';
 
 class StudentDashboard extends StatefulWidget {
   final String studentName;
@@ -35,6 +36,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
   List<Map<String, dynamic>> _recentActivity = [];
   String _displayStudentName = '';
   String _displayPrn = '';
+  bool _isHoliday = false;
+  String _holidayName = '';
 
   List<Map<String, dynamic>> _mergeSubjectsWithAttendance(
     List<Map<String, dynamic>> subjects,
@@ -145,9 +148,16 @@ class _StudentDashboardState extends State<StudentDashboard> {
     });
 
     try {
-      final result = await ApiServices.getStudentDashboard(
-        studentId: widget.studentId,
-      );
+      final results = await Future.wait([
+        ApiServices.getStudentDashboard(studentId: widget.studentId),
+        ApiServices.getDailySchedule(),
+      ]);
+
+      final result = results[0];
+      final holidayData = results[1];
+
+      final isHoliday = holidayData['is_holiday'] ?? false;
+      final holidayName = holidayData['holiday_name'] ?? '';
 
       if (result['status'] == true) {
         final data = result['data'];
@@ -205,11 +215,15 @@ class _StudentDashboardState extends State<StudentDashboard> {
           _classesTotal = total;
           _displayStudentName = liveStudentName?.isNotEmpty == true ? liveStudentName! : widget.studentName;
           _displayPrn = livePrn?.isNotEmpty == true ? livePrn! : widget.prn;
+          _isHoliday = isHoliday;
+          _holidayName = holidayName;
           _isLoading = false;
         });
       } else {
         setState(() {
           _errorMessage = result['message'] ?? 'Failed to load data';
+          _isHoliday = isHoliday;
+          _holidayName = holidayName;
           _isLoading = false;
         });
       }
@@ -280,6 +294,57 @@ class _StudentDashboardState extends State<StudentDashboard> {
               child: const Text('Retry', style: TextStyle(color: Colors.white)),
             ),
           ],
+        ),
+      );
+    }
+
+    if (_isHoliday) {
+      return RefreshIndicator(
+        onRefresh: _fetchDashboardData,
+        color: accentColor,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Container(
+            constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height - kToolbarHeight - MediaQuery.of(context).padding.top - 80,
+            ),
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Lottie.asset('assets/animations/holiday_chill.json', height: 200),
+                const SizedBox(height: 24),
+                const Text(
+                  "No Classes Today!",
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: primaryTextColor,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  "Today is marked as $_holidayName.",
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: secondaryTextColor,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  "Enjoy your day off!",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: successColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
         ),
       );
     }

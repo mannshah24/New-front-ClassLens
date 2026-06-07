@@ -360,7 +360,29 @@ class _ClassSessionAttendanceState extends ConsumerState<ClassSessionAttendance>
               fontWeight: FontWeight.w600,
               fontSize: 18,
             ),
+            overflow: TextOverflow.ellipsis,
           ),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: TextButton.icon(
+                onPressed: () => _uploadMorePhotos(context),
+                icon: const Icon(Icons.add_a_photo, color: Colors.white, size: 20),
+                label: const Text(
+                  "Rescan",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  splashFactory: InkRipple.splashFactory,
+                ),
+              ),
+            ),
+          ],
         ),
         body: Column(
           children: [
@@ -449,15 +471,6 @@ class _ClassSessionAttendanceState extends ConsumerState<ClassSessionAttendance>
               ),
             ),
           ],
-        ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: () => _uploadMorePhotos(context),
-          backgroundColor: appThemeColor,
-          icon: const Icon(Icons.add_a_photo, color: Colors.white),
-          label: const Text(
-            "Rescan / Add Photos",
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
         ),
       ),
     );

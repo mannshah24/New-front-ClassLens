@@ -38,6 +38,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
   String _displayPrn = '';
   bool _isHoliday = false;
   String _holidayName = '';
+  List<Map<String, dynamic>> _todaySessions = [];
 
   List<Map<String, dynamic>> _mergeSubjectsWithAttendance(
     List<Map<String, dynamic>> subjects,
@@ -150,7 +151,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
     try {
       final results = await Future.wait([
         ApiServices.getStudentDashboard(studentId: widget.studentId),
-        ApiServices.getDailySchedule(),
+        ApiServices.getDailySchedule(studentId: widget.studentId),
       ]);
 
       final result = results[0];
@@ -158,6 +159,10 @@ class _StudentDashboardState extends State<StudentDashboard> {
 
       final isHoliday = holidayData['is_holiday'] ?? false;
       final holidayName = holidayData['holiday_name'] ?? '';
+      final rawSessions = holidayData['sessions'];
+      final List<Map<String, dynamic>> sessionsList = rawSessions is List
+          ? rawSessions.map((s) => Map<String, dynamic>.from(s as Map)).toList()
+          : <Map<String, dynamic>>[];
 
       if (result['status'] == true) {
         final data = result['data'];
@@ -217,6 +222,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
           _displayPrn = livePrn?.isNotEmpty == true ? livePrn! : widget.prn;
           _isHoliday = isHoliday;
           _holidayName = holidayName;
+          _todaySessions = sessionsList;
           _isLoading = false;
         });
       } else {
@@ -224,12 +230,14 @@ class _StudentDashboardState extends State<StudentDashboard> {
           _errorMessage = result['message'] ?? 'Failed to load data';
           _isHoliday = isHoliday;
           _holidayName = holidayName;
+          _todaySessions = [];
           _isLoading = false;
         });
       }
     } catch (e) {
       setState(() {
         _errorMessage = 'Network error. Please try again.';
+        _todaySessions = [];
         _isLoading = false;
       });
     }
@@ -359,8 +367,40 @@ class _StudentDashboardState extends State<StudentDashboard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 10),
-              _buildOverallSummaryCard(),
-              const SizedBox(height: 20),
+            _buildOverallSummaryCard(),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  "Today's Schedule",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryTextColor),
+                ),
+                TextButton.icon(
+                  onPressed: () => _showWeeklyTimetableBottomSheet(context),
+                  icon: const Icon(Icons.calendar_month, size: 16, color: accentColor),
+                  label: const Text(
+                    "Weekly Timetable",
+                    style: TextStyle(color: accentColor, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (_todaySessions.isEmpty)
+              _buildNoClassesCard()
+            else
+              ListView.builder(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _todaySessions.length,
+                itemBuilder: (context, index) {
+                  final session = _todaySessions[index];
+                  return _buildSessionCard(session);
+                },
+              ),
+            const SizedBox(height: 24),
             const Text(
               "Attendance Overview",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryTextColor),
@@ -706,6 +746,465 @@ class _StudentDashboardState extends State<StudentDashboard> {
           ),
         );
       }).toList(),
+    );
+  }
+
+  Widget _buildSessionCard(Map<String, dynamic> session) {
+    final subjectName = session['subject_name'] ?? 'Unknown Subject';
+    final subjectCode = session['subject_code'] ?? '';
+    final teacherName = session['proxy_teacher_name'] != null
+        ? "${session['proxy_teacher_name']} (Proxy)"
+        : (session['teacher_name'] ?? 'No teacher assigned');
+    final isCancelled = session['is_cancelled'] ?? false;
+    final isMoved = session['is_moved'] ?? false;
+    final attendanceMarked = session['attendance_marked'] ?? false;
+
+    Color badgeColor = accentColor;
+    String badgeText = "Scheduled";
+    if (isCancelled) {
+      badgeColor = attentionColor;
+      badgeText = "Cancelled";
+    } else if (isMoved) {
+      badgeColor = warningColor;
+      badgeText = "Moved";
+    } else if (attendanceMarked) {
+      badgeColor = successColor;
+      badgeText = "Completed";
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12.0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardBackgroundColor,
+        borderRadius: BorderRadius.circular(16.0),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          )
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: badgeColor.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isCancelled
+                  ? Icons.cancel_outlined
+                  : (attendanceMarked ? Icons.check_circle_outline : Icons.book_outlined),
+              color: badgeColor,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  subjectName,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: isCancelled ? secondaryTextColor : primaryTextColor,
+                    decoration: isCancelled ? TextDecoration.lineThrough : null,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  "$subjectCode • $teacherName",
+                  style: const TextStyle(fontSize: 12, color: secondaryTextColor),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: badgeColor.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              badgeText,
+              style: TextStyle(
+                color: badgeColor == warningColor ? const Color(0xFFB78103) : badgeColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 11,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoClassesCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cardBackgroundColor,
+        borderRadius: BorderRadius.circular(16.0),
+        border: Border.all(color: Colors.grey.withOpacity(0.1)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.calendar_today_outlined, color: secondaryTextColor),
+          SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "No sessions scheduled",
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: primaryTextColor,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  "Enjoy your free day!",
+                  style: TextStyle(fontSize: 12, color: secondaryTextColor),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showWeeklyTimetableBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.75,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          builder: (context, scrollController) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: primaryBackgroundColor,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                child: _WeeklyTimetableWidget(
+                  studentId: widget.studentId,
+                  scrollController: scrollController,
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _WeeklyTimetableWidget extends StatefulWidget {
+  final int studentId;
+  final ScrollController scrollController;
+
+  const _WeeklyTimetableWidget({
+    required this.studentId,
+    required this.scrollController,
+  });
+
+  @override
+  State<_WeeklyTimetableWidget> createState() => _WeeklyTimetableWidgetState();
+}
+
+class _WeeklyTimetableWidgetState extends State<_WeeklyTimetableWidget> {
+  bool _loading = true;
+  String? _error;
+  String? _divisionName;
+  Map<String, dynamic> _timetable = {};
+  
+  final List<String> _days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  String _selectedDay = "Monday";
+
+  @override
+  void initState() {
+    super.initState();
+    // Default selectedDay to today's day of week if weekday is 1..7 (Mon..Sun)
+    final now = DateTime.now();
+    if (now.weekday >= 1 && now.weekday <= 7) {
+      _selectedDay = _days[now.weekday - 1];
+    }
+    _loadTimetable();
+  }
+
+  Future<void> _loadTimetable() async {
+    try {
+      final res = await ApiServices.getWeeklyTimetable(studentId: widget.studentId);
+      setState(() {
+        _divisionName = res['division_name'];
+        _timetable = res['timetable'] ?? {};
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = "Failed to load weekly timetable.";
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Handle bar for bottom sheet drag
+        Container(
+          margin: const EdgeInsets.only(top: 12, bottom: 8),
+          width: 40,
+          height: 5,
+          decoration: BoxDecoration(
+            color: Colors.grey.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(2.5),
+          ),
+        ),
+        
+        // Header
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Weekly Timetable",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: primaryTextColor,
+                      ),
+                    ),
+                    if (_divisionName != null)
+                      Text(
+                        "Division: $_divisionName",
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: secondaryTextColor,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, color: primaryTextColor),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+        ),
+
+        const Divider(height: 1),
+
+        // Horizontal day selector
+        Container(
+          height: 60,
+          color: Colors.white,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            itemCount: _days.length,
+            itemBuilder: (context, index) {
+              final day = _days[index];
+              final isSelected = day == _selectedDay;
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedDay = day;
+                  });
+                },
+                child: Container(
+                  margin: const EdgeInsets.only(right: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected ? accentColor : primaryBackgroundColor,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Center(
+                    child: Text(
+                      day,
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : primaryTextColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+
+        // Timetable items
+        Expanded(
+          child: _buildTimetableContent(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimetableContent() {
+    if (_loading) {
+      return const Center(
+        child: CircularProgressIndicator(color: accentColor),
+      );
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(_error!, style: const TextStyle(color: secondaryTextColor)),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _loading = true;
+                  _error = null;
+                });
+                _loadTimetable();
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: accentColor),
+              child: const Text("Retry", style: TextStyle(color: Colors.white)),
+            )
+          ],
+        ),
+      );
+    }
+
+    final daySessions = _timetable[_selectedDay];
+    final List<dynamic> sessionsList = daySessions is List ? daySessions : [];
+
+    if (sessionsList.isEmpty) {
+      return ListView(
+        controller: widget.scrollController,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 24),
+            alignment: Alignment.center,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.calendar_today_outlined,
+                  size: 60,
+                  color: secondaryTextColor.withOpacity(0.3),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "No lectures scheduled for $_selectedDay",
+                  style: TextStyle(
+                    color: secondaryTextColor.withOpacity(0.7),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    return ListView.builder(
+      controller: widget.scrollController,
+      padding: const EdgeInsets.all(16),
+      itemCount: sessionsList.length,
+      itemBuilder: (context, index) {
+        final session = sessionsList[index];
+        final subjectName = session['subject_name'] ?? 'Unknown Subject';
+        final teacherName = session['default_teacher_name'] ?? 'No teacher assigned';
+        final program = session['program'] ?? '';
+        final semester = session['semester'] ?? '';
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: cardBackgroundColor,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              )
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: accentColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.book_outlined,
+                  color: accentColor,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      subjectName,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: primaryTextColor,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      teacherName,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: secondaryTextColor,
+                      ),
+                    ),
+                    if (program.toString().isNotEmpty || semester.toString().isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4.0),
+                        child: Text(
+                          "${program.toString()} • Sem ${semester.toString()}",
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: secondaryTextColor.withOpacity(0.8),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

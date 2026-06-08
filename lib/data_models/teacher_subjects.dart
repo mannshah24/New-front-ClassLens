@@ -8,6 +8,7 @@ class TeacherSubjects{
   final String? departmentName;
   final int? year;
   final int? semester;
+  final bool isMapped;
 
   const TeacherSubjects({
     required this.id,
@@ -19,6 +20,7 @@ class TeacherSubjects{
     this.departmentName,
     this.year,
     this.semester,
+    this.isMapped = true,
   });
 
   factory TeacherSubjects.fromJson(Map<String,dynamic> json){
@@ -30,6 +32,7 @@ class TeacherSubjects{
     final dynamic departmentNameValue = json['department_name'];
     final dynamic yearValue = json['year'];
     final dynamic semesterValue = json['semester'];
+    final dynamic isMappedValue = json['is_mapped'];
 
     return TeacherSubjects(
       id: json['id'],
@@ -41,6 +44,7 @@ class TeacherSubjects{
       departmentName: departmentNameValue?.toString(),
       year: yearValue is int ? yearValue : int.tryParse(yearValue.toString()),
       semester: semesterValue is int ? semesterValue : int.tryParse(semesterValue.toString()),
+      isMapped: isMappedValue is bool ? isMappedValue : (isMappedValue?.toString().toLowerCase() == 'true' || isMappedValue == null),
     );
   }
-}
+}

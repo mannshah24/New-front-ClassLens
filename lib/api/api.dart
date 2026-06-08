@@ -1057,9 +1057,14 @@ class ApiServices {
   }
 
   /// Fetches the daily schedule from the backend, containing holiday information.
-  static Future<Map<String, dynamic>> getDailySchedule() async {
-    String endpoint = "$_baseUrl/schedule/daily/";
-    final url = Uri.parse(endpoint);
+  static Future<Map<String, dynamic>> getDailySchedule({int? studentId}) async {
+    final queryParameters = <String, String>{};
+    if (studentId != null) {
+      queryParameters['student_id'] = studentId.toString();
+    }
+    final url = Uri.parse("$_baseUrl/schedule/daily/").replace(
+      queryParameters: queryParameters.isEmpty ? null : queryParameters,
+    );
 
     try {
       final response = await http.get(url);
@@ -1080,6 +1085,33 @@ class ApiServices {
         'is_holiday': false,
         'holiday_name': null,
         'sessions': [],
+      };
+    }
+  }
+
+  /// Fetches the weekly timetable for a student's division.
+  static Future<Map<String, dynamic>> getWeeklyTimetable({required int studentId}) async {
+    final url = Uri.parse("$_baseUrl/student/timetable/").replace(
+      queryParameters: {'student_id': studentId.toString()},
+    );
+
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is Map<String, dynamic>) {
+          return data;
+        }
+      }
+      return {
+        'division_name': null,
+        'timetable': {},
+      };
+    } catch (e) {
+      print("Error fetching weekly timetable: $e");
+      return {
+        'division_name': null,
+        'timetable': {},
       };
     }
   }

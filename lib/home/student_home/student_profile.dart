@@ -257,7 +257,17 @@ class _StudentProfileTabState extends State<StudentProfileTab> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('Profile', style: TextStyle(color: primaryTextColor, fontSize: 20, fontWeight: FontWeight.w500)),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (Navigator.canPop(context))
+                                IconButton(
+                                  icon: const Icon(Icons.arrow_back, color: primaryTextColor),
+                                  onPressed: () => Navigator.pop(context),
+                                ),
+                              const Text('Profile', style: TextStyle(color: primaryTextColor, fontSize: 20, fontWeight: FontWeight.w500)),
+                            ],
+                          ),
                           IconButton(icon: const Icon(Icons.logout, color: attentionColor), onPressed: () => _showLogoutDialog(context)),
                         ],
                       ),

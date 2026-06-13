@@ -64,6 +64,21 @@ class _HomeState extends ConsumerState<Home> {
     AttendanceResult(teacherID: widget.teacherID),
   ];
 
+  String _getHolidayText() {
+    final lowerName = _holidayName.toLowerCase();
+    if (lowerName.contains('closure') ||
+        lowerName.contains('closuer') ||
+        lowerName.contains('strike') ||
+        lowerName.contains('emergency') ||
+        lowerName.contains('lockdown') ||
+        lowerName.contains('shutdown') ||
+        lowerName.contains('rain') ||
+        _holidayName.trim().isEmpty) {
+      return "Today is marked as Holiday.";
+    }
+    return "Today is marked as $_holidayName.";
+  }
+
   @override
   void initState(){
     super.initState();
@@ -129,7 +144,7 @@ class _HomeState extends ConsumerState<Home> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  "Today is marked as $_holidayName.",
+                  _getHolidayText(),
                   style: const TextStyle(
                     fontSize: 16,
                     color: secondaryTextColor,
@@ -277,7 +292,7 @@ class _HomeState extends ConsumerState<Home> {
     if (_isHoliday) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Cannot take attendance. Today is marked as $_holidayName."),
+          content: Text("Cannot take attendance. ${_getHolidayText()}"),
           backgroundColor: attentionColor,
         ),
       );

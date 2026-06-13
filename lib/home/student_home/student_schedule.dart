@@ -32,14 +32,14 @@ class _StudentScheduleTabState extends State<StudentScheduleTab> {
   String? _weeklyError;
   String? _divisionName;
   Map<String, dynamic> _timetable = {};
+  Map<String, dynamic> _weeklyHolidays = {};
   final List<String> _days = [
     "Monday",
     "Tuesday",
     "Wednesday",
     "Thursday",
     "Friday",
-    "Saturday",
-    "Sunday"
+    "Saturday"
   ];
   String _selectedDay = "Monday";
 
@@ -48,8 +48,10 @@ class _StudentScheduleTabState extends State<StudentScheduleTab> {
     super.initState();
     // Set default selected day for weekly view based on today's weekday
     final now = DateTime.now();
-    if (now.weekday >= 1 && now.weekday <= 7) {
+    if (now.weekday >= 1 && now.weekday <= 6) {
       _selectedDay = _days[now.weekday - 1];
+    } else {
+      _selectedDay = "Monday";
     }
     _fetchDailySchedule();
     _fetchWeeklyTimetable();
@@ -97,6 +99,7 @@ class _StudentScheduleTabState extends State<StudentScheduleTab> {
       setState(() {
         _divisionName = res['division_name'];
         _timetable = res['timetable'] ?? {};
+        _weeklyHolidays = res['holidays'] ?? {};
         _weeklyLoading = false;
       });
     } catch (e) {
@@ -105,6 +108,36 @@ class _StudentScheduleTabState extends State<StudentScheduleTab> {
         _weeklyLoading = false;
       });
     }
+  }
+
+  String _getWeeklyHolidayText(String name) {
+    final lowerName = name.toLowerCase();
+    if (lowerName.contains('closure') ||
+        lowerName.contains('closuer') ||
+        lowerName.contains('strike') ||
+        lowerName.contains('emergency') ||
+        lowerName.contains('lockdown') ||
+        lowerName.contains('shutdown') ||
+        lowerName.contains('rain') ||
+        name.trim().isEmpty) {
+      return "Today is marked as Holiday.";
+    }
+    return "Today is marked as $name.";
+  }
+
+  String _getHolidayText() {
+    final lowerName = _holidayName.toLowerCase();
+    if (lowerName.contains('closure') ||
+        lowerName.contains('closuer') ||
+        lowerName.contains('strike') ||
+        lowerName.contains('emergency') ||
+        lowerName.contains('lockdown') ||
+        lowerName.contains('shutdown') ||
+        lowerName.contains('rain') ||
+        _holidayName.trim().isEmpty) {
+      return "Today is marked as Holiday.";
+    }
+    return "Today is marked as $_holidayName.";
   }
 
   @override
@@ -281,7 +314,7 @@ class _StudentScheduleTabState extends State<StudentScheduleTab> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  "Today is marked as $_holidayName.",
+                  _getHolidayText(),
                   style: const TextStyle(
                     fontSize: 16,
                     color: secondaryTextColor,
@@ -624,6 +657,61 @@ class _StudentScheduleTabState extends State<StudentScheduleTab> {
   }
 
   Widget _buildTimetableList() {
+    final holidayInfo = _weeklyHolidays[_selectedDay];
+    final isHoliday = holidayInfo != null && holidayInfo['is_holiday'] == true;
+    final holidayName = holidayInfo != null ? (holidayInfo['holiday_name'] ?? '') : '';
+
+    if (isHoliday) {
+      return RefreshIndicator(
+        onRefresh: _fetchWeeklyTimetable,
+        color: accentColor,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Container(
+            constraints: BoxConstraints(
+              minHeight: MediaQuery.of(context).size.height - kToolbarHeight - MediaQuery.of(context).padding.top - 250,
+            ),
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Lottie.asset('assets/animations/holiday_chill.json', height: 160),
+                const SizedBox(height: 20),
+                const Text(
+                  "No Classes Today!",
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: primaryTextColor,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  _getWeeklyHolidayText(holidayName),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    color: secondaryTextColor,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  "Enjoy your day off!",
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: successColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     final daySessions = _timetable[_selectedDay];
     final List<dynamic> sessionsList = daySessions is List ? daySessions : [];
 

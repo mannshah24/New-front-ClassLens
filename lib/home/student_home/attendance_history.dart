@@ -478,7 +478,7 @@ class _AttendanceHistoryTabState extends State<AttendanceHistoryTab> {
 
       if (!alreadyMatched) {
         final isCancelled = session['is_cancelled'] ?? false;
-        final status = isCancelled ? 'Canceled' : 'Awaiting Data';
+        final status = isCancelled ? 'Canceled' : 'Not Marked';
 
         mergedList.add({
           'subject': session['subject_name'] ?? 'Unknown Subject',
@@ -547,7 +547,7 @@ class _AttendanceHistoryTabState extends State<AttendanceHistoryTab> {
             statusColor = attentionColor;
             statusIcon = Icons.cancel_outlined;
           } else {
-            // Awaiting Data
+            // Not Marked
             statusColor = secondaryTextColor;
             statusIcon = Icons.help_outline;
           }

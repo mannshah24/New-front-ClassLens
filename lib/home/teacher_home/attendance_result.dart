@@ -245,16 +245,37 @@ class _AttendanceResult extends State<AttendanceResult> {
                 ),
               ),
               const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildStatItem("Present", presentCount, successColor),
-                  _buildStatItem("Absent", absentCount, attentionColor),
-                  _buildStatItem("Total", total, primaryTextColor),
-                ],
-              ),
-
-              if (total > 0) ...[
+              if (total == 0) ...[
+                Row(
+                  children: const [
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.blue,
+                      ),
+                    ),
+                    SizedBox(width: 10),
+                    Text(
+                      "Processing AI Attendance...",
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.blue,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ] else ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildStatItem("Present", presentCount, successColor),
+                    _buildStatItem("Absent", absentCount, attentionColor),
+                    _buildStatItem("Total", total, primaryTextColor),
+                  ],
+                ),
                 const SizedBox(height: 12),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),

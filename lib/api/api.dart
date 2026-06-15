@@ -1057,10 +1057,13 @@ class ApiServices {
   }
 
   /// Fetches the daily schedule from the backend, containing holiday information.
-  static Future<Map<String, dynamic>> getDailySchedule({int? studentId}) async {
+  static Future<Map<String, dynamic>> getDailySchedule({int? studentId, String? date}) async {
     final queryParameters = <String, String>{};
     if (studentId != null) {
       queryParameters['student_id'] = studentId.toString();
+    }
+    if (date != null) {
+      queryParameters['date'] = date;
     }
     final url = Uri.parse("$_baseUrl/schedule/daily/").replace(
       queryParameters: queryParameters.isEmpty ? null : queryParameters,
@@ -1086,6 +1089,27 @@ class ApiServices {
         'holiday_name': null,
         'sessions': [],
       };
+    }
+  }
+
+  /// Updates the ui_order of a DailySession.
+  static Future<bool> updateSessionOrder({required int sessionId, required int uiOrder}) async {
+    final url = Uri.parse("$_baseUrl/schedule/daily/reorder/");
+    const headers = {'Content-Type': 'application/json; charset=UTF-8'};
+    final body = jsonEncode({
+      'session_id': sessionId,
+      'ui_order': uiOrder,
+    });
+
+    try {
+      final response = await http.post(url, headers: headers, body: body);
+      if (response.statusCode == 200) {
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print("Error updating session order: $e");
+      return false;
     }
   }
 

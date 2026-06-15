@@ -64,6 +64,21 @@ class _HomeState extends ConsumerState<Home> {
     AttendanceResult(teacherID: widget.teacherID),
   ];
 
+  String _getHolidayText() {
+    final lowerName = _holidayName.toLowerCase();
+    if (lowerName.contains('closure') ||
+        lowerName.contains('closuer') ||
+        lowerName.contains('strike') ||
+        lowerName.contains('emergency') ||
+        lowerName.contains('lockdown') ||
+        lowerName.contains('shutdown') ||
+        lowerName.contains('rain') ||
+        _holidayName.trim().isEmpty) {
+      return "Today is marked as Holiday.";
+    }
+    return "Today is marked as $_holidayName.";
+  }
+
   @override
   void initState(){
     super.initState();
@@ -129,7 +144,7 @@ class _HomeState extends ConsumerState<Home> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  "Today is marked as $_holidayName.",
+                  _getHolidayText(),
                   style: const TextStyle(
                     fontSize: 16,
                     color: secondaryTextColor,
@@ -277,7 +292,7 @@ class _HomeState extends ConsumerState<Home> {
     if (_isHoliday) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Cannot take attendance. Today is marked as $_holidayName."),
+          content: Text("Cannot take attendance. ${_getHolidayText()}"),
           backgroundColor: attentionColor,
         ),
       );
@@ -811,10 +826,13 @@ class _RecentActivitySectionState extends State<RecentActivitySection> {
     final stats = item.stats;
 
     final total = stats.presentCount + stats.absentCount;
-    final percentage = (total == 0) ? 0.0 : (stats.presentCount / total) * 100;
+    final isProcessing = (total == 0);
+    final percentage = isProcessing ? 0.0 : (stats.presentCount / total) * 100;
 
     final Color color;
-    if (percentage >= 75) {
+    if (isProcessing) {
+      color = Colors.blue;
+    } else if (percentage >= 75) {
       color = successColor;
     } else if (percentage >= 50) {
       color = warningColor;
@@ -836,12 +854,13 @@ class _RecentActivitySectionState extends State<RecentActivitySection> {
       dateString,
       percentage.toInt(),
       color,
+      isProcessing: isProcessing,
     );
   }
 
 
   Widget _buildActivityItem(
-      String title, String subtitle, int percentage, Color color) {
+      String title, String subtitle, int percentage, Color color, {bool isProcessing = false}) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -852,7 +871,10 @@ class _RecentActivitySectionState extends State<RecentActivitySection> {
         children: [
           CircleAvatar(
             backgroundColor: color.withOpacity(0.1),
-            child: Icon(Icons.check_circle_outline, color: color),
+            child: Icon(
+              isProcessing ? Icons.sync_rounded : Icons.check_circle_outline,
+              color: color,
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -869,11 +891,20 @@ class _RecentActivitySectionState extends State<RecentActivitySection> {
               ],
             ),
           ),
-          Text(
-            "$percentage%",
-            style: TextStyle(
-                fontWeight: FontWeight.bold, fontSize: 18, color: color),
-          ),
+          isProcessing
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.blue,
+                  ),
+                )
+              : Text(
+                  "$percentage%",
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 18, color: color),
+                ),
         ],
       ),
     );

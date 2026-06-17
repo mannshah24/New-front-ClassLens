@@ -478,7 +478,10 @@ class _AttendanceHistoryTabState extends State<AttendanceHistoryTab> {
 
       if (!alreadyMatched) {
         final isCancelled = session['is_cancelled'] ?? false;
-        final status = isCancelled ? 'Canceled' : 'Not Marked';
+        final attendanceMarked = session['attendance_marked'] ?? false;
+        final status = isCancelled 
+            ? 'Canceled' 
+            : (attendanceMarked ? 'Absent' : 'Not Marked');
 
         mergedList.add({
           'subject': session['subject_name'] ?? 'Unknown Subject',

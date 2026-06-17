@@ -44,10 +44,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             prn: prn,
             studentId: studentId,
           ),
-          StudentScheduleTab(
-            studentId: studentId,
-          ),
-          const AttendanceHistoryTab(),
         ];
         _isLoading = false;
       });
@@ -190,7 +186,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           children: [
             IndexedStack(
               index: _selectedIndex,
-              children: _pages,
+              children: [
+                _pages[0],
+                _selectedIndex == 1 ? StudentScheduleTab(studentId: _studentId) : const SizedBox.shrink(),
+                _selectedIndex == 2 ? const AttendanceHistoryTab() : const SizedBox.shrink(),
+              ],
             ),
             _buildGlobalAppBar(context),
           ],

@@ -847,6 +847,22 @@ class ApiServices {
       final response = await http.Response.fromStream(streamedResponse);
       final message = _extractMessageFromBody(response.body);
 
+      if (response.statusCode == 202) {
+        try {
+          final responseData = json.decode(response.body);
+          final taskId = responseData['task_id'];
+          if (taskId != null) {
+            print("Async face update task initiated: $taskId. Polling...");
+            final isSuccess = await _pollTaskStatus(taskId);
+            return {
+              'statusCode': isSuccess ? 200 : 500,
+              'message': isSuccess ? 'Student face updated successfully' : 'Failed to update face',
+              'body': response.body,
+            };
+          }
+        } catch (_) {}
+      }
+
       return {
         'statusCode': response.statusCode,
         'message': message,
@@ -989,6 +1005,14 @@ class ApiServices {
       if (response.statusCode == 200) {
         print("Password set and student registered successfully");
         return true;
+      } else if (response.statusCode == 202) {
+        final responseData = json.decode(response.body);
+        final taskId = responseData['task_id'];
+        if (taskId != null) {
+          print("Async registration task initiated: $taskId. Polling...");
+          return await _pollTaskStatus(taskId);
+        }
+        return false;
       } else {
         print("Failed to register student: ${response.statusCode}");
         print(response.body);
@@ -1137,6 +1161,97 @@ class ApiServices {
         'division_name': null,
         'timetable': {},
       };
+    }
+  }
+
+  /// Polls task status until completion or timeout
+  static Future<bool> _pollTaskStatus(String taskId) async {
+    int attempts = 0;
+    const maxAttempts = 15;
+    final url = Uri.parse("$_baseUrl/taskStatus/$taskId/");
+    
+    while (attempts < maxAttempts) {
+      await Future.delayed(const Duration(seconds: 2));
+      attempts++;
+      
+      try {
+        final response = await http.get(url);
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          final status = data['status'];
+          if (status == 'SUCCESS') {
+            print("Task completed successfully.");
+            return true;
+          } else if (status == 'FAILURE' || status == 'error') {
+            print("Task failed: ${data['error']}");
+            return false;
+          }
+        } else if (response.statusCode == 500) {
+          final data = jsonDecode(response.body);
+          print("Task failed with 500: ${data['error']}");
+          return false;
+        }
+      } catch (e) {
+        print("Error polling task status: $e");
+      }
+    }
+    print("Task status polling timed out.");
+    return false;
+  }
+
+  /// Updates the FCM notification token for a teacher
+  static Future<bool> updateTeacherNotificationToken({
+    required int teacherId,
+    required String notificationToken,
+  }) async {
+    String endpoint = "$_baseUrl/teacher/notification-token/";
+    final url = Uri.parse(endpoint);
+
+    const headers = {'Content-Type': 'application/json; charset=UTF-8'};
+    final body = jsonEncode({
+      'teacher_id': teacherId,
+      'notification_token': notificationToken,
+    });
+
+    try {
+      final response = await http.post(url, headers: headers, body: body);
+
+      if (response.statusCode == 200) {
+        print("Teacher notification token updated successfully");
+        return true;
+      } else {
+        print("Failed to update teacher notification token: ${response.statusCode}");
+        return false;
+      }
+    } catch (e) {
+      print("Error updating teacher notification token: $e");
+      return false;
+    }
+  }
+
+  /// Removes the FCM notification token for a teacher (on logout)
+  static Future<bool> removeTeacherNotificationToken({
+    required int teacherId,
+  }) async {
+    String endpoint = "$_baseUrl/teacher/notification-token/remove/";
+    final url = Uri.parse(endpoint);
+
+    const headers = {'Content-Type': 'application/json; charset=UTF-8'};
+    final body = jsonEncode({'teacher_id': teacherId});
+
+    try {
+      final response = await http.post(url, headers: headers, body: body);
+
+      if (response.statusCode == 200) {
+        print("Teacher notification token removed successfully");
+        return true;
+      } else {
+        print("Failed to remove teacher notification token: ${response.statusCode}");
+        return false;
+      }
+    } catch (e) {
+      print("Error removing teacher notification token: $e");
+      return false;
     }
   }
 }

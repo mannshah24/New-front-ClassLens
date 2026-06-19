@@ -267,6 +267,7 @@ class _HomeState extends ConsumerState<Home> {
 
                 print("Logout confirmed");
                 Navigator.of(dialogContext).pop();
+                await unregisterTeacherFCMToken(widget.teacherID);
                 SharedPreferences pref = await SharedPreferences.getInstance();
                 pref.setBool("rememberMe", false);
                 pref.remove("teacherName");
@@ -333,8 +334,7 @@ class _HomeState extends ConsumerState<Home> {
   }
 
   Future<void> requestNotificationPermissions() async{
-    final AndroidFlutterLocalNotificationsPlugin? androidImplementation=flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-    await androidImplementation?.requestNotificationsPermission();
+    await Permission.notification.request();
   }
 
   Future<void> showNotification() async{

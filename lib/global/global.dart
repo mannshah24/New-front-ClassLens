@@ -1,5 +1,10 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:classlens/api/api.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 late String userName;
 late int userID;
@@ -95,17 +100,61 @@ Future<String> getStudentAccessToken() async {
   return pref.getString(_keyStudentAccessToken) ?? "";
 }
 
+Future<String?> _getFCMToken() async {
+  if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) {
+    return null;
+  }
+  try {
+    PermissionStatus status = await Permission.notification.request();
+    if (status.isGranted) {
+      await FirebaseMessaging.instance.requestPermission(
+        alert: true,
+        sound: true,
+        badge: true,
+      );
+      return await FirebaseMessaging.instance.getToken();
+    } else {
+      print("Notification permission is not granted: $status");
+    }
+  } catch (e) {
+    print("Error fetching FCM token: $e");
+  }
+  return null;
+}
+
 Future<void> registerFCMToken(int studentId) async {
-  print(
-    "FCM disabled on this desktop build; skipping registration for student $studentId.",
-  );
+  final token = await _getFCMToken();
+  if (token != null) {
+    await ApiServices.updateNotificationToken(
+      studentId: studentId,
+      notificationToken: token,
+    );
+  } else {
+    print("FCM skipped/unavailable for student $studentId.");
+  }
 }
 
 Future<void> unregisterFCMToken() async {
   final studentId = await getStudentID();
-  if (studentId > 0) {
-    print(
-      "FCM disabled on this desktop build; skipping unregister for student $studentId.",
+  if (studentId > 0 && !kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+    await ApiServices.removeNotificationToken(studentId: studentId);
+  }
+}
+
+Future<void> registerTeacherFCMToken(int teacherId) async {
+  final token = await _getFCMToken();
+  if (token != null) {
+    await ApiServices.updateTeacherNotificationToken(
+      teacherId: teacherId,
+      notificationToken: token,
     );
+  } else {
+    print("FCM skipped/unavailable for teacher $teacherId.");
+  }
+}
+
+Future<void> unregisterTeacherFCMToken(int teacherId) async {
+  if (teacherId > 0 && !kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+    await ApiServices.removeTeacherNotificationToken(teacherId: teacherId);
   }
 }

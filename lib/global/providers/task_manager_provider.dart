@@ -1,5 +1,6 @@
 import 'package:classlens/global/global.dart';
 import 'package:classlens/global/providers/task_provider.dart';
+import 'package:classlens/main.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:classlens/data_models/notification_hive_model.dart';
@@ -160,6 +161,12 @@ class TaskManagerNotifier extends Notifier<List<UserTask>> {
       dynamic presentCount = status.result["present_count"];
       dynamic absentCount = status.result["absent_count"];
       dynamic subject = status.result["subject"];
+      
+      showLocalNotification(
+        title: "Attendance Processed - $subject",
+        body: "Attendance processing completed successfully. Present: $presentCount, Absent: $absentCount.",
+      );
+
       if (classSessionID is int && presentCount is int && absentCount is int) {
         if (!classSessionBox.containsKey(classSessionID)) {
           final newStats = SessionStats()
@@ -180,6 +187,11 @@ class TaskManagerNotifier extends Notifier<List<UserTask>> {
           }
         }
       }
+    } else if (cleanStatus == 'FAILURE' || cleanStatus == 'error') {
+      showLocalNotification(
+        title: "Attendance Failed",
+        body: "Attendance processing failed. Please try resubmitting.",
+      );
     }
 
     state = [

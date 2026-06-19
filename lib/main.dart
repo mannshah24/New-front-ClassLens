@@ -7,14 +7,21 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'dart:io' show Platform;
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'firebase_options.dart';
 
 import 'splash_screen.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
-// Firebase messaging is disabled for the Windows desktop build.
-void _handleBackgroundMessagePlaceholder() {}
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  print("Handling background message: ${message.messageId}");
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,7 +34,25 @@ void main() async {
     await dotenv.load(fileName: ".env.dev");
   }
 
-  _handleBackgroundMessagePlaceholder();
+  if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        if (message.notification != null) {
+          showLocalNotification(
+            title: message.notification!.title,
+            body: message.notification!.body,
+          );
+        }
+      });
+    } catch (e) {
+      print("Firebase initialization error: $e");
+    }
+  }
 
   try {
     await Hive.initFlutter();
@@ -70,7 +95,7 @@ void main() async {
   clearExpiredNotification();
 
   const AndroidInitializationSettings initializationSettingsAndroid =
-      AndroidInitializationSettings("app_icon.png");
+      AndroidInitializationSettings("app_icon");
   const WindowsInitializationSettings initializationSettingsWindows =
       WindowsInitializationSettings(
         appName: "ClassLens",
@@ -83,7 +108,22 @@ void main() async {
     android: initializationSettingsAndroid,
     windows: initializationSettingsWindows,
   );
-  flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+
+  if (!kIsWeb && Platform.isAndroid) {
+    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+      'attendance_channel',
+      'Attendance Notifications',
+      description: 'Notifications for attendance updates',
+      importance: Importance.max,
+      playSound: true,
+    );
+
+    await flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
+  }
 
   userName = await getUserName();
   final savedID = await getUserID();
@@ -110,7 +150,7 @@ void clearExpiredNotification() {
 }
 
 // Show local notification when app is in foreground.
-void _showLocalNotification({String? title, String? body}) async {
+void showLocalNotification({String? title, String? body}) async {
   const AndroidNotificationDetails androidPlatformChannelSpecifics =
       AndroidNotificationDetails(
         'attendance_channel',

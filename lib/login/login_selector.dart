@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:classlens/global/global.dart';
 import 'package:classlens/home/student_home/home_screen.dart';
 import 'package:classlens/home/teacher_home/home_screen.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 
 const Color primaryBackgroundColor = Color(0xFFF0F4F8);
@@ -30,7 +31,9 @@ class _LoginSelectorState extends State<LoginSelector> {
   @override
   void initState() {
     super.initState();
-    _checkRememberedSession();
+    Permission.notification.request().then((_) {
+      _checkRememberedSession();
+    });
   }
 
   Future<void> _checkRememberedSession() async {
@@ -58,6 +61,9 @@ class _LoginSelectorState extends State<LoginSelector> {
         // Auto-login as teacher
         final teacherName = await getUserName();
         final teacherID = await getUserID();
+        if (teacherID != null && teacherID > 0) {
+          await registerTeacherFCMToken(teacherID);
+        }
         if (mounted) {
           Navigator.pushReplacement(
             context,

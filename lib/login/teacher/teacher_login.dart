@@ -311,6 +311,8 @@ class _LoginPageState extends State<Login> {
               teacherID: result['teacherID']
           );
 
+          await registerTeacherFCMToken(result['teacherID']);
+
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(

@@ -37,15 +37,13 @@ class _StudentOtpPageState extends State<StudentOtpPage> {
   final FocusNode _focusNode4 = FocusNode();
 
   Timer? _timer;
-  int _start = 30;
+  int _start = 60;
   bool _isResendAvailable = false;
 
   @override
   void initState() {
     super.initState();
-    _startTimer();
-    // Simulate sending OTP on load if needed, or assume it was sent by previous page
-    ApiServices.sendOpt(email: widget.email);
+    _sendOtpAndStartTimer();
   }
 
   @override
@@ -62,10 +60,17 @@ class _StudentOtpPageState extends State<StudentOtpPage> {
     super.dispose();
   }
 
-  void _startTimer() {
+  String get _formattedTime {
+    final minutes = (_start ~/ 60).toString().padLeft(2, '0');
+    final seconds = (_start % 60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
+
+  void _startTimer(int seconds) {
+    _timer?.cancel();
     setState(() {
       _isResendAvailable = false;
-      _start = 30;
+      _start = seconds;
     });
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_start == 0) {
@@ -81,24 +86,55 @@ class _StudentOtpPageState extends State<StudentOtpPage> {
     });
   }
 
-  Future<void> _resendOtp() async {
-    if (_isResendAvailable) {
-      bool response = await ApiServices.sendOpt(email: widget.email);
-      if (response) {
+  Future<void> _sendOtpAndStartTimer() async {
+    setState(() {
+      _isResendAvailable = false;
+      _start = 60;
+    });
+    _startTimer(60);
+
+    final result = await ApiServices.sendOpt(email: widget.email);
+    if (mounted) {
+      int cooldown = result['cooldown_seconds'] ?? 60;
+      _startTimer(cooldown);
+      if (result['success'] != true) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('OTP Resent Successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        _startTimer();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to resend OTP. Please try again.'),
+          SnackBar(
+            content: Text(result['message'] ?? 'Failed to send OTP.'),
             backgroundColor: Colors.red,
           ),
         );
+      }
+    }
+  }
+
+  Future<void> _resendOtp() async {
+    if (_isResendAvailable) {
+      setState(() {
+        _isResendAvailable = false;
+        _start = 60;
+      });
+      _timer?.cancel();
+
+      final result = await ApiServices.sendOpt(email: widget.email);
+      if (mounted) {
+        int cooldown = result['cooldown_seconds'] ?? 60;
+        _startTimer(cooldown);
+        if (result['success'] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('OTP Resent Successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message'] ?? 'Failed to resend OTP. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
@@ -263,7 +299,7 @@ class _StudentOtpPageState extends State<StudentOtpPage> {
             child: Text(
               _isResendAvailable
                   ? "Resend OTP"
-                  : "Resend OTP in 00:${_start.toString().padLeft(2, '0')}",
+                  : "Resend OTP in $_formattedTime",
               style: TextStyle(
                 color: _isResendAvailable ? buttonColor : secondaryTextColor,
                 fontWeight: FontWeight.w600,

@@ -107,7 +107,7 @@ class ApiServices {
     }
   }
 
-  static Future<bool> sendOpt({required final String email}) async {
+  static Future<Map<String, dynamic>> sendOpt({required final String email}) async {
     String endpoint = "$_baseUrl/sendOtp/";
     final url = Uri.parse(endpoint);
 
@@ -117,17 +117,33 @@ class ApiServices {
       final body = jsonEncode({"email": email});
 
       final response = await http.post(url, headers: headers, body: body);
+      Map<String, dynamic> responseData = {};
+      try {
+        responseData = jsonDecode(response.body);
+      } catch (_) {}
 
       if (response.statusCode == 200) {
         print("mail sent");
-        return Future.value(true);
+        return {
+          "success": true,
+          "cooldown_seconds": responseData["cooldown_seconds"] ?? 60,
+          "message": responseData["message"] ?? "OTP sent successfully"
+        };
       } else {
         print("mail not sent");
-        return Future.value(false);
+        return {
+          "success": false,
+          "cooldown_seconds": responseData["cooldown_seconds"] ?? 60,
+          "message": responseData["detail"] ?? responseData["message"] ?? "Failed to send OTP"
+        };
       }
     } catch (e) {
       print(e.toString());
-      return Future.value(false);
+      return {
+        "success": false,
+        "cooldown_seconds": 60,
+        "message": "Could not connect to the server."
+      };
     }
   }
 

@@ -30,8 +30,7 @@ class _TeacherOtpPageState extends State<TeacherOtpPage> {
   final _otpController3 = TextEditingController();
   final _otpController4 = TextEditingController();
 
-  static const int initialTimerSeconds = 30;
-  late int secondsRemaining = initialTimerSeconds;
+  int secondsRemaining = 60;
   Timer? timer;
 
   final _otpFocusNode1 = FocusNode();
@@ -42,15 +41,14 @@ class _TeacherOtpPageState extends State<TeacherOtpPage> {
   @override
   void initState() {
     super.initState();
-    ApiServices.sendOpt(email: widget.email);
     print("api-otp hit");
-    _resetAndStartTimer();
+    _sendOtpAndStartTimer(isResend: false);
   }
 
-  void _resetAndStartTimer() {
+  void _resetAndStartTimer(int seconds) {
     timer?.cancel();
     setState(() {
-      secondsRemaining = initialTimerSeconds;
+      secondsRemaining = seconds;
     });
 
     timer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -64,6 +62,36 @@ class _TeacherOtpPageState extends State<TeacherOtpPage> {
         }
       }
     });
+  }
+
+  Future<void> _sendOtpAndStartTimer({bool isResend = false}) async {
+    setState(() {
+      secondsRemaining = 60;
+    });
+    _resetAndStartTimer(60);
+
+    final result = await ApiServices.sendOpt(email: widget.email);
+    if (mounted) {
+      int cooldown = result['cooldown_seconds'] ?? 60;
+      _resetAndStartTimer(cooldown);
+      if (result['success'] == true) {
+        if (isResend) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("OTP resent! Please check your email."),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? "An unexpected error occurred."),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   String get _formattedTime {
@@ -223,25 +251,7 @@ class _TeacherOtpPageState extends State<TeacherOtpPage> {
           children: [
             FittedBox(child: const Text("Didn't receive code? ", style: TextStyle(color: secondaryTextColor))),
             TextButton(
-              onPressed: canResend ? () async {
-                _resetAndStartTimer();
-                bool response = await ApiServices.sendOpt(email: widget.email);
-                if(response){
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("OTP resent! Please check your email."),
-                        backgroundColor: Colors.green,
-                      )
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("An unexpected error occurred."),
-                        backgroundColor: Colors.red,
-                      )
-                  );
-                }
-              } : null,
+              onPressed: canResend ? () => _sendOtpAndStartTimer(isResend: true) : null,
               child: FittedBox(
                 child: Text(
                   'Resend',

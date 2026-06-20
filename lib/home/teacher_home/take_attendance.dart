@@ -54,15 +54,16 @@ class _AttendanceUploadScreenState extends State<AttendanceUploadScreen> {
       if (!mounted) return;
 
       if (pickedFiles.isNotEmpty) {
+        final totalLength = _imageFiles.length + pickedFiles.length;
         setState(() {
           _imageFiles.addAll(pickedFiles);
-          if (_imageFiles.length > 3) {
-            _imageFiles = _imageFiles.sublist(0, 3);
+          if (_imageFiles.length > 10) {
+            _imageFiles = _imageFiles.sublist(0, 10);
           }
         });
-        if (_imageFiles.length > 3) {
+        if (totalLength > 10) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Maximum 3 images allowed')),
+            const SnackBar(content: Text('Maximum 10 images allowed')),
           );
         }
       }
@@ -75,11 +76,11 @@ class _AttendanceUploadScreenState extends State<AttendanceUploadScreen> {
       if (!mounted) return;
 
       if (pickedFile != null) {
-        if (_imageFiles.length < 3) {
+        if (_imageFiles.length < 10) {
           setState(() => _imageFiles.add(pickedFile));
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Maximum 3 images allowed')),
+            const SnackBar(content: Text('Maximum 10 images allowed')),
           );
         }
       }
@@ -311,7 +312,7 @@ class _AttendanceUploadScreenState extends State<AttendanceUploadScreen> {
             height: 220,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              itemCount: _imageFiles.length + (_imageFiles.length < 3 ? 1 : 0),
+              itemCount: _imageFiles.length + (_imageFiles.length < 10 ? 1 : 0),
               itemBuilder: (context, index) {
                 if (index == _imageFiles.length) {
                   // Add button
@@ -441,7 +442,7 @@ class _AttendanceUploadScreenState extends State<AttendanceUploadScreen> {
                         const SizedBox(height: 4),
                         FittedBox(
                           child: Text(
-                            'Tap here to upload (Max 3)',
+                            'Tap here to upload (Max 10)',
                             style: TextStyle(
                               color: secondaryTextColor.withOpacity(0.8),
                             ),

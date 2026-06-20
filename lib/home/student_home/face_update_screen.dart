@@ -20,14 +20,9 @@ class _StudentFaceUpdateScreenState extends State<StudentFaceUpdateScreen> {
   final ImagePicker _picker = ImagePicker();
   bool _isAnalyzing = false;
 
-  Future<void> _pickImage(ImageSource source) async {
-    Navigator.of(context).pop();
-    await Future.delayed(const Duration(milliseconds: 300));
-
-    if (!mounted) return;
-
+  Future<void> _pickImageFromCamera() async {
     try {
-      final pickedFile = await _picker.pickImage(source: source, imageQuality: 80);
+      final pickedFile = await _picker.pickImage(source: ImageSource.camera, imageQuality: 80);
 
       if (!mounted) return;
 
@@ -116,36 +111,7 @@ class _StudentFaceUpdateScreenState extends State<StudentFaceUpdateScreen> {
     );
   }
 
-  void _showImageSourceActionSheet() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: cardBackgroundColor,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24.0))),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              const Text('Select Image Source', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryTextColor)),
-              const SizedBox(height: 16),
-              ListTile(
-                leading: const Icon(Icons.photo_library_outlined, color: accentColor),
-                title: const Text('Gallery'),
-                onTap: () => _pickImage(ImageSource.gallery),
-              ),
-              const Divider(),
-              ListTile(
-                leading: const Icon(Icons.camera_alt_outlined, color: accentColor),
-                title: const Text('Camera'),
-                onTap: () => _pickImage(ImageSource.camera),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -164,7 +130,7 @@ class _StudentFaceUpdateScreenState extends State<StudentFaceUpdateScreen> {
             children: [
               // Image Picker Area
               GestureDetector(
-                onTap: _imageFile == null ? _showImageSourceActionSheet : null,
+                onTap: _imageFile == null ? _pickImageFromCamera : null,
                 child: DottedBorder(
                   color: secondaryTextColor.withOpacity(0.5),
                   strokeWidth: 2,
@@ -185,7 +151,7 @@ class _StudentFaceUpdateScreenState extends State<StudentFaceUpdateScreen> {
                         children: [
                           Icon(Icons.face, size: 60, color: accentColor.withOpacity(0.8)),
                           const SizedBox(height: 12),
-                          const Text('Tap to Upload New Photo', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: primaryTextColor)),
+                          const Text('Tap to Take New Photo', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: primaryTextColor)),
                         ],
                       ),
                     )

@@ -51,16 +51,10 @@ class _StudentPhotoUploaderState extends State<StudentPhotoUploader> {
   bool _isAnalyzing = false;
   bool _isRegistering = false;
 
-  Future<void> _pickImage(ImageSource source) async {
-    // Close the bottom sheet first, then wait for the dismiss animation to complete before launching the camera.
-    Navigator.of(context).pop();
-    await Future.delayed(const Duration(milliseconds: 300));
-
-    if (!mounted) return;
-
+  Future<void> _pickImageFromCamera() async {
     try {
       final pickedFile = await _picker.pickImage(
-        source: source,
+        source: ImageSource.camera,
         imageQuality: 80, // Compress image to reduce file size
       );
 
@@ -392,58 +386,6 @@ class _StudentPhotoUploaderState extends State<StudentPhotoUploader> {
     }
   }
 
-  void _showImageSourceActionSheet() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: cardBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24.0)),
-      ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Text(
-                'Select Image Source',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: primaryTextColor,
-                ),
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                leading: const Icon(
-                  Icons.photo_library_outlined,
-                  color: accentColor,
-                ),
-                title: const Text(
-                  'Choose from Gallery',
-                  style: TextStyle(color: primaryTextColor),
-                ),
-                onTap: () => _pickImage(ImageSource.gallery),
-              ),
-              const Divider(),
-              ListTile(
-                leading: const Icon(
-                  Icons.camera_alt_outlined,
-                  color: accentColor,
-                ),
-                title: const Text(
-                  'Take a Photo',
-                  style: TextStyle(color: primaryTextColor),
-                ),
-                onTap: () => _pickImage(ImageSource.camera),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
@@ -540,7 +482,7 @@ class _StudentPhotoUploaderState extends State<StudentPhotoUploader> {
 
   Widget _buildImagePickerBox() {
     return GestureDetector(
-      onTap: _imageFile == null ? _showImageSourceActionSheet : null,
+      onTap: _imageFile == null ? _pickImageFromCamera : null,
       child: DottedBorder(
         color: secondaryTextColor.withOpacity(0.5),
         strokeWidth: 2,
@@ -581,7 +523,7 @@ class _StudentPhotoUploaderState extends State<StudentPhotoUploader> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Tap here to upload or take a photo',
+                        'Tap here to take a photo',
                         style: TextStyle(
                           color: secondaryTextColor.withOpacity(0.8),
                         ),

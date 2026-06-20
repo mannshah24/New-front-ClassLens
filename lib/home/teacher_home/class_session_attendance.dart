@@ -96,8 +96,8 @@ class _ClassSessionAttendanceState extends ConsumerState<ClassSessionAttendance>
               if (picked.isNotEmpty) {
                 setModalState(() {
                   selectedImages.addAll(picked);
-                  if (selectedImages.length > 3) {
-                    selectedImages = selectedImages.sublist(0, 3);
+                  if (selectedImages.length > 10) {
+                    selectedImages = selectedImages.sublist(0, 10);
                   }
                 });
               }
@@ -105,7 +105,7 @@ class _ClassSessionAttendanceState extends ConsumerState<ClassSessionAttendance>
               final picked = await picker.pickImage(source: source, imageQuality: 85);
               if (picked != null) {
                 setModalState(() {
-                  if (selectedImages.length < 3) {
+                  if (selectedImages.length < 10) {
                     selectedImages.add(picked);
                   }
                 });
@@ -123,7 +123,7 @@ class _ClassSessionAttendanceState extends ConsumerState<ClassSessionAttendance>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
-                      "Select Additional Images",
+                       "Select Additional Images",
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryTextColor),
                     ),
                     IconButton(
@@ -138,7 +138,7 @@ class _ClassSessionAttendanceState extends ConsumerState<ClassSessionAttendance>
                     height: 120,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
-                      itemCount: selectedImages.length + (selectedImages.length < 3 ? 1 : 0),
+                      itemCount: selectedImages.length + (selectedImages.length < 10 ? 1 : 0),
                       itemBuilder: (context, index) {
                         if (index == selectedImages.length) {
                           return Padding(
@@ -210,7 +210,7 @@ class _ClassSessionAttendanceState extends ConsumerState<ClassSessionAttendance>
                         children: [
                           Icon(Icons.cloud_upload_outlined, size: 40, color: secondaryTextColor),
                           SizedBox(height: 8),
-                          Text("Tap to select photos (Max 3)", style: TextStyle(color: secondaryTextColor)),
+                          Text("Tap to select photos (Max 10)", style: TextStyle(color: secondaryTextColor)),
                         ],
                       ),
                     ),

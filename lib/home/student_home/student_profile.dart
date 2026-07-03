@@ -192,6 +192,7 @@ class _StudentProfileTabState extends State<StudentProfileTab> {
         final departmentName = data['department_name']?.toString() ?? '';
         final semester = data['semester']?.toString() ?? '';
         final divisionName = data['division_name']?.toString() ?? data['division']?.toString() ?? data['divisionName']?.toString() ?? '';
+        final cooldownSeconds = data['face_update_cooldown_seconds'] ?? 0;
 
         return Scaffold(
           backgroundColor: Colors.transparent,
@@ -242,6 +243,7 @@ class _StudentProfileTabState extends State<StudentProfileTab> {
                     departmentName: departmentName,
                     semester: semester,
                     divisionName: divisionName,
+                    cooldownSeconds: cooldownSeconds,
                   ),
                 ),
 
@@ -296,6 +298,7 @@ class _StudentProfileTabState extends State<StudentProfileTab> {
     required String departmentName,
     required String semester,
     required String divisionName,
+    required int cooldownSeconds,
   }) {
     return Container(
       width: double.infinity,
@@ -341,27 +344,31 @@ class _StudentProfileTabState extends State<StudentProfileTab> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 icon: const Icon(Icons.face_retouching_natural),
-                label: const Text("Update Face ID"),
+                label: cooldownSeconds > 0
+                    ? Text("Face ID Lock (${(cooldownSeconds / 60).ceil()}m)")
+                    : const Text("Update Face ID"),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: accentColor,
+                  backgroundColor: cooldownSeconds > 0 ? Colors.grey : accentColor,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                onPressed: () {
-                  Navigator.push<bool>(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => StudentFaceUpdateScreen(prn: prn),
-                    ),
-                  ).then((updated) {
-                    if (updated == true && mounted) {
-                      setState(() {
-                        _profileFuture = _loadProfileData();
-                      });
-                    }
-                  });
-                },
+                onPressed: cooldownSeconds > 0
+                    ? null
+                    : () {
+                        Navigator.push<bool>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => StudentFaceUpdateScreen(prn: prn),
+                          ),
+                        ).then((updated) {
+                          if (updated == true && mounted) {
+                            setState(() {
+                              _profileFuture = _loadProfileData();
+                            });
+                          }
+                        });
+                      },
               ),
             ),
           )

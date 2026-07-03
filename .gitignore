@@ -61,6 +61,7 @@ app.*.map.json
 .env
 .env.local
 .env*.local
+config.json
 
 # OS generated files
 Thumbs.db

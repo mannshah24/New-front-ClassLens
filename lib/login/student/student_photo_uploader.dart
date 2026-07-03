@@ -356,8 +356,9 @@ class _StudentPhotoUploaderState extends State<StudentPhotoUploader> {
         navigatorWithAnimation(context, const StudentLogin());
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Registration successful! Please login."),
+            content: Text("Registration successful! Your Face ID will be active for attendance in 1 hour if the image is valid. You can log in now."),
             backgroundColor: Colors.green,
+            duration: Duration(seconds: 5),
           ),
         );
       } else {

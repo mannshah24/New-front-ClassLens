@@ -1,9 +1,13 @@
 import 'package:classlens/page_animations/slide_animation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'dart:async';
 import '../../api/api.dart';
 import '../../data_models/class_session_data.dart';
 import '../../global/global.dart';
+import '../../global/providers/task_manager_provider.dart';
 import 'class_session_attendance.dart';
 
 
@@ -13,23 +17,40 @@ const Color cardBackgroundColor = Colors.white;
 const Color successColor = Color(0xFF43A047);
 const Color attentionColor = Color(0xFFE53935);
 
-class AttendanceResult extends StatefulWidget {
+class AttendanceResult extends ConsumerStatefulWidget {
   final int teacherID;
 
   const AttendanceResult({super.key, required this.teacherID});
 
   @override
-  State<AttendanceResult> createState() => _AttendanceResult();
+  ConsumerState<AttendanceResult> createState() => _AttendanceResult();
 }
 
-class _AttendanceResult extends State<AttendanceResult> {
+class _AttendanceResult extends ConsumerState<AttendanceResult> {
   List<_AttendanceSessionItem> sessionStatsList = [];
   bool _isLoading = true;
+  StreamSubscription<RemoteMessage>? _fcmSubscription;
 
   @override
   void initState() {
     super.initState();
     _loadData();
+    _setupFCMListener();
+  }
+
+  @override
+  void dispose() {
+    _fcmSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _setupFCMListener() {
+    _fcmSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      if (message.data['type'] == 'teacher_attendance') {
+        print("AttendanceResult FCM: Refreshing history list.");
+        _loadData();
+      }
+    });
   }
 
   Future<void> _loadData() async {
@@ -245,7 +266,12 @@ class _AttendanceResult extends State<AttendanceResult> {
                 ),
               ),
               const SizedBox(height: 12),
-              if (total == 0) ...[
+              if (total == 0 && ref.watch(taskManagerProvider).any((task) {
+                if (task.isCompleted) return false;
+                final taskSub = task.subject?.trim().toLowerCase() ?? '';
+                final sessSub = stats.subject.trim().toLowerCase();
+                return taskSub.isNotEmpty && (taskSub == sessSub || sessSub.contains(taskSub) || taskSub.contains(sessSub));
+              })) ...[
                 Row(
                   children: const [
                     SizedBox(
@@ -280,7 +306,7 @@ class _AttendanceResult extends State<AttendanceResult> {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
                   child: LinearProgressIndicator(
-                    value: presentCount / total,
+                    value: total == 0 ? 0.0 : presentCount / total,
                     backgroundColor: attentionColor.withOpacity(0.2),
                     valueColor: const AlwaysStoppedAnimation<Color>(successColor),
                     minHeight: 8,

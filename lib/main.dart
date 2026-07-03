@@ -26,12 +26,16 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  if (kReleaseMode) {
-    // App is in release mode (production)
-    await dotenv.load(fileName: ".env.prod");
-  } else {
-    // App is in debug mode (development)
-    await dotenv.load(fileName: ".env.dev");
+  try {
+    if (kReleaseMode) {
+      // App is in release mode (production)
+      await dotenv.load(fileName: ".env.prod");
+    } else {
+      // App is in debug mode (development)
+      await dotenv.load(fileName: ".env.dev");
+    }
+  } catch (e) {
+    debugPrint("Note: DotEnv failed to load: $e. Using environment compilation/defaults.");
   }
 
   if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {

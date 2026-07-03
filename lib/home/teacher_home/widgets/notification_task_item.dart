@@ -82,11 +82,22 @@ class NotificationTaskItem extends ConsumerWidget {
 
   String _toAbsoluteImageUrl(String rawUrl) {
     final url = rawUrl.trim();
+    final apiUri = Uri.parse(AppConfig.baseUrl);
+
     if (url.startsWith('http://') || url.startsWith('https://')) {
-      return url;
+      try {
+        final rawUri = Uri.parse(url);
+        final correctedUri = rawUri.replace(
+          scheme: apiUri.scheme,
+          host: apiUri.host,
+          port: apiUri.port,
+        );
+        return correctedUri.toString();
+      } catch (_) {
+        return url;
+      }
     }
 
-    final apiUri = Uri.parse(AppConfig.baseUrl);
     final origin = '${apiUri.scheme}://${apiUri.host}${apiUri.hasPort ? ':${apiUri.port}' : ''}';
 
     if (url.startsWith('/')) {

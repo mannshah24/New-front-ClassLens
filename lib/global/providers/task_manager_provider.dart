@@ -13,17 +13,19 @@ class UserTask {
   late final DateTime submissionTime;
   TaskStatus? currentStatus;
   late bool isRead;
+  final String? subject;
 
   UserTask({
     required this.taskID,
     required this.submissionTime,
     this.currentStatus,
     this.isRead = true,
+    this.subject,
   });
 
   bool get isCompleted {
     final current = currentStatus?.status.trim();
-    return current == 'SUCCESS' || current == 'FAILURE';
+    return current == 'SUCCESS' || current == 'FAILURE' || current == 'error';
   }
 }
 
@@ -110,6 +112,7 @@ class TaskManagerNotifier extends Notifier<List<UserTask>> {
           },
           error: (err, stack) {
             print("_listen CALLBACK (${task.taskID}): State is ERROR: $err. Closing listener.");
+            updateTaskStatus(task.taskID, TaskStatus(status: 'FAILURE', result: 'Connection lost or server offline'));
             _cancelSubscription(task.taskID); // Close the listener
           },
           loading: () {
@@ -141,9 +144,9 @@ class TaskManagerNotifier extends Notifier<List<UserTask>> {
   }
 
 
-  void addTask(String taskID) {
+  void addTask(String taskID, {String? subject}) {
     if (state.any((task) => task.taskID == taskID)) return;
-    final newTask = UserTask(taskID: taskID, submissionTime: DateTime.now());
+    final newTask = UserTask(taskID: taskID, submissionTime: DateTime.now(), subject: subject);
 
 
     state = [...state, newTask];
@@ -154,6 +157,11 @@ class TaskManagerNotifier extends Notifier<List<UserTask>> {
 
   void updateTaskStatus(String taskID, TaskStatus status) {
     final cleanStatus = status.status.trim();
+    String? subjectName;
+    try {
+      final existing = state.firstWhere((t) => t.taskID == taskID);
+      subjectName = existing.subject;
+    } catch (_) {}
 
     if (cleanStatus == 'SUCCESS') {
       print("updateTaskStatus ($taskID): Status is SUCCESS. Result: ${status.result}");
@@ -161,6 +169,9 @@ class TaskManagerNotifier extends Notifier<List<UserTask>> {
       dynamic presentCount = status.result["present_count"];
       dynamic absentCount = status.result["absent_count"];
       dynamic subject = status.result["subject"];
+      if (subject is String) {
+        subjectName = subject;
+      }
       
       showLocalNotification(
         title: "Attendance Processed - $subject",
@@ -201,9 +212,10 @@ class TaskManagerNotifier extends Notifier<List<UserTask>> {
             taskID: task.taskID,
             submissionTime: task.submissionTime,
             currentStatus: status,
-            isRead: (cleanStatus == 'SUCCESS' || cleanStatus == 'FAILURE')
+            isRead: (cleanStatus == 'SUCCESS' || cleanStatus == 'FAILURE' || cleanStatus == 'error')
                 ? false
                 : task.isRead,
+            subject: subjectName ?? task.subject,
           )
         else
           task

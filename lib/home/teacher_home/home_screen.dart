@@ -1,4 +1,6 @@
 import 'dart:ui';
+import 'dart:async';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:classlens/api/api.dart';
 import 'package:classlens/global/providers/connectivity_provider.dart';
 import 'package:classlens/home/teacher_home/attendance_result.dart';
@@ -19,6 +21,7 @@ import 'package:classlens/home/teacher_home/take_attendance.dart';
 import '../../data_models/class_session_data.dart';
 import '../../data_models/notification_hive_model.dart';
 import '../../global/providers/task_manager_provider.dart';
+import '../../global/providers/task_provider.dart';
 import '../../page_animations/slide_animation.dart';
 import 'package:classlens/home/teacher_home/widgets/notification_icon.dart';
 import 'package:classlens/home/teacher_home/students_percentage_status.dart';
@@ -315,10 +318,12 @@ class _HomeState extends ConsumerState<Home> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text("Attendance submitted successfully!"), backgroundColor: Colors.green),
               );
-              final taskID = result;
+              final parts = result.split('|');
+              final taskID = parts[0];
+              final subject = parts.length > 1 ? parts[1] : '';
 
               // start notification tracking with taskID
-              ref.read(taskManagerProvider.notifier).addTask(taskID);
+              ref.read(taskManagerProvider.notifier).addTask(taskID, subject: subject);
 
             }
       }
@@ -644,23 +649,47 @@ class TakeAttendanceCard extends StatelessWidget {
   }
 }
 
-class RecentActivitySection extends StatefulWidget {
+class RecentActivitySection extends ConsumerStatefulWidget {
   final int teacherID;
 
   const RecentActivitySection({super.key, required this.teacherID});
 
   @override
-  State<RecentActivitySection> createState() => _RecentActivitySectionState();
+  ConsumerState<RecentActivitySection> createState() => _RecentActivitySectionState();
 }
 
-class _RecentActivitySectionState extends State<RecentActivitySection> {
+class _RecentActivitySectionState extends ConsumerState<RecentActivitySection> {
   List<_RecentActivityItem> recentStats = [];
   bool _isLoading = true;
+  StreamSubscription<RemoteMessage>? _fcmSubscription;
 
   @override
   void initState() {
     super.initState();
     _loadRecentActivity();
+    _setupFCMListener();
+  }
+
+  @override
+  void dispose() {
+    _fcmSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _setupFCMListener() {
+    _fcmSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      if (message.data['type'] == 'teacher_attendance') {
+        print("RecentActivitySection FCM: Refreshing recent activity and invalidating task provider.");
+        _loadRecentActivity();
+        
+        final tasks = ref.read(taskManagerProvider);
+        for (final task in tasks) {
+          if (!task.isCompleted) {
+            ref.invalidate(taskStatusProvider(task.taskID));
+          }
+        }
+      }
+    });
   }
 
   Future<void> _loadRecentActivity() async {
@@ -826,8 +855,18 @@ class _RecentActivitySectionState extends State<RecentActivitySection> {
     final stats = item.stats;
 
     final total = stats.presentCount + stats.absentCount;
-    final isProcessing = (total == 0);
-    final percentage = isProcessing ? 0.0 : (stats.presentCount / total) * 100;
+    
+    // Check if there is an active (incomplete) task in taskManagerProvider for this subject
+    final tasks = ref.watch(taskManagerProvider);
+    final isSubjectProcessing = tasks.any((task) {
+      if (task.isCompleted) return false;
+      final taskSub = task.subject?.trim().toLowerCase() ?? '';
+      final sessSub = stats.subject.trim().toLowerCase();
+      return taskSub.isNotEmpty && (taskSub == sessSub || sessSub.contains(taskSub) || taskSub.contains(sessSub));
+    });
+
+    final isProcessing = (total == 0) && isSubjectProcessing;
+    final percentage = (total == 0) ? 0.0 : (stats.presentCount / total) * 100;
 
     final Color color;
     if (isProcessing) {

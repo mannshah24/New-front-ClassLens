@@ -59,13 +59,30 @@ final taskStatusProvider = StreamProvider.family<TaskStatus, String>((ref, taskI
         }
       }
     } catch (e) {
+      final errorStr = e.toString().toLowerCase();
+      final isNetworkError = errorStr.contains('socketexception') || 
+                             errorStr.contains('handshake') || 
+                             errorStr.contains('connection') || 
+                             errorStr.contains('clientexception');
 
-      if (!isClosedByUs) {
-        isClosedByUs = true;
-        try { controller.addError(e); } catch (_) {}
-        try { await controller.close(); } catch (_) {}
+      if (isNetworkError) {
+        // Server might be offline. Backoff and retry polling.
+        // Cap the maximum retry interval at 5 minutes (300 seconds) to avoid spamming.
+        final nextSeconds = (delay.inSeconds * 2).clamp(5, 300);
+        delay = Duration(seconds: nextSeconds);
+        print("taskStatusProvider: Server offline/connection failed. Retrying in ${delay.inSeconds} seconds...");
+        if (!isClosedByUs) {
+          timer = Timer(delay, poll);
+        }
+      } else {
+        // Real logic failure or max attempts reached for non-network errors
+        if (!isClosedByUs) {
+          isClosedByUs = true;
+          try { controller.addError(e); } catch (_) {}
+          try { await controller.close(); } catch (_) {}
+        }
+        timer?.cancel();
       }
-      timer?.cancel();
     }
   }
 

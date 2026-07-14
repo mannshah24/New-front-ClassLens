@@ -632,7 +632,23 @@ class ApiServices {
         final decoded = jsonDecode(response.body);
         if (decoded is Map<String, dynamic>) {
           final List<dynamic> photos = decoded['photos'] ?? [];
-          return photos.map<String>((p) => p['detected_url'] as String).toList();
+          final List<String> urls = [];
+          final apiUri = Uri.parse(_baseUrl);
+          
+          for (final p in photos) {
+            final rawUrl = p['detected_url'] as String?;
+            if (rawUrl != null && rawUrl.isNotEmpty) {
+              final photoUri = Uri.parse(rawUrl);
+              // Dynamically adjust scheme, host, and port to match our current API server
+              final correctedUri = photoUri.replace(
+                scheme: apiUri.scheme,
+                host: apiUri.host,
+                port: apiUri.port,
+              );
+              urls.add(correctedUri.toString());
+            }
+          }
+          return urls;
         }
       }
     } catch (e) {

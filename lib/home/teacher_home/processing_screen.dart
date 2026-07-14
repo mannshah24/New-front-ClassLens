@@ -66,7 +66,7 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
         final message = returnedUrl['message']?.toString() ?? 'Upload failed';
 
         if (taskID != null) {
-          Navigator.of(context).pop(taskID);
+          Navigator.of(context).pop('$taskID|${widget.subject}');
         } else {
           
           Navigator.of(context).pop('Error: $message');

@@ -264,7 +264,10 @@ class _ClassSessionAttendanceState extends ConsumerState<ClassSessionAttendance>
                 backgroundColor: successColor,
               ),
             );
-            ref.read(taskManagerProvider.notifier).addTask(taskID);
+            final parts = taskID.split('|');
+            final taskIDOnly = parts[0];
+            final subject = parts.length > 1 ? parts[1] : widget.subjectName;
+            ref.read(taskManagerProvider.notifier).addTask(taskIDOnly, subject: subject);
           }
         }
       }

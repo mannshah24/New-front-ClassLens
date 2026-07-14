@@ -214,8 +214,6 @@ class ProfessionalSubjectTile extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                           color: primaryTextColor,
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
                       Text(

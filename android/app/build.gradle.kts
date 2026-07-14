@@ -41,6 +41,13 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+    applicationVariants.configureEach {
+        outputs.configureEach {
+            if (buildType.name == "release") {
+                (this as? com.android.build.gradle.internal.api.ApkVariantOutputImpl)?.outputFileName = "classlens.apk"
+            }
+        }
+    }
 }
 
 flutter {

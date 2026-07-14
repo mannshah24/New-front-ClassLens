@@ -8,7 +8,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:classlens/global/global.dart';
 
 class Login extends StatefulWidget {
-  const Login({super.key});
+  final String? initialEmail;
+  final String? initialPassword;
+  const Login({super.key, this.initialEmail, this.initialPassword});
 
   @override
   State<Login> createState() => _LoginPageState();
@@ -38,8 +40,8 @@ class _LoginPageState extends State<Login> {
   @override
   void initState() {
     super.initState();
-    _teacherPasswordController.clear();
-    _teacherEmailController.clear();
+    _teacherEmailController.text = widget.initialEmail ?? "";
+    _teacherPasswordController.text = widget.initialPassword ?? "";
   }
 
   @override

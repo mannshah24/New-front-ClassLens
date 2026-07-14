@@ -522,7 +522,6 @@ class _AttendanceUploadScreenState extends State<AttendanceUploadScreen> {
                                 fontWeight: FontWeight.bold,
                                 color: primaryTextColor,
                               ),
-                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           if (!subject.isMapped)

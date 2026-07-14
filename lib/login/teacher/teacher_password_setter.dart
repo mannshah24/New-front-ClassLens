@@ -54,7 +54,13 @@ class _TeacherPasswordSetterState extends State<TeacherPasswordSetter> {
       if (response && mounted) {
 
         Navigator.of(context).popUntil((route) => route.isFirst);
-        navigatorWithAnimation(context, const Login());
+        navigatorWithAnimation(
+          context,
+          Login(
+            initialEmail: widget.email,
+            initialPassword: _teacherPasswordController.text,
+          ),
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Password set successfully!"), backgroundColor: Colors.green),
         );

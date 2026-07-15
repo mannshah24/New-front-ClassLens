@@ -1,4 +1,4 @@
-// import 'package:classlens/login/student/student_login.dart';
+import 'package:classlens/login/student/student_login.dart';
 import 'package:classlens/login/student/student_photo_uploader.dart';
 import 'package:classlens/page_animations/slide_animation.dart';
 import 'package:flutter/material.dart';
@@ -18,10 +18,12 @@ const Color circleColor2 = Color.fromARGB(255, 201, 247, 222);
 class StudentPasswordSetter extends StatefulWidget {
   final String email;
   final int prn;
+  final bool isForgotPassword;
   const StudentPasswordSetter({
     super.key,
     required this.email,
     required this.prn,
+    this.isForgotPassword = false,
   });
 
   @override
@@ -60,23 +62,66 @@ class _StudentPasswordSetterState extends State<StudentPasswordSetter> {
         _isLoading = true;
       });
 
-      if (mounted) {
-        Navigator.of(context).popUntil((route) => route.isFirst);
-        navigatorWithAnimation(
-          context,
-          StudentPhotoUploader(
+      try {
+        if (widget.isForgotPassword) {
+          bool response = await ApiServices.setPassword(
             prn: widget.prn,
             password: _studentPasswordController.text,
-          ),
-        );
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Password set successfully!"),
-              backgroundColor: Colors.green),
-        );
+          );
+          if (response && mounted) {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+            navigatorWithAnimation(
+              context,
+              const StudentLogin(),
+            );
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Password reset successfully! Please log in."),
+                backgroundColor: Colors.green,
+              ),
+            );
+          } else if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Failed to reset password. Please try again."),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        } else {
+          if (mounted) {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+            navigatorWithAnimation(
+              context,
+              StudentPhotoUploader(
+                prn: widget.prn,
+                password: _studentPasswordController.text,
+              ),
+            );
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Password set successfully!"),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Error setting password: $e"),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
-      setState(() {
-        _isLoading = false;
-      });
     }
   }
 

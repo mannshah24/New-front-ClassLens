@@ -6,6 +6,7 @@ import 'package:classlens/home/teacher_home/home_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 // ignore: unused_import
 import 'package:classlens/global/global.dart';
+import 'package:classlens/login/forgot_password.dart';
 
 class Login extends StatefulWidget {
   final String? initialEmail;
@@ -200,6 +201,29 @@ class _LoginPageState extends State<Login> {
                   style: TextStyle(color: secondaryTextColor, fontSize: 14),
                 ),
               ],
+            ),
+            const SizedBox(height: 12),
+
+            // --- Forgot Password Link ---
+            Align(
+              alignment: Alignment.center,
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ForgotPasswordScreen(isStudent: false),
+                    ),
+                  );
+                },
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8.0),
+                  child: Text(
+                    "Forgot Password?",
+                    style: TextStyle(color: Colors.blue, fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
             ),
             const SizedBox(height: 20),
 

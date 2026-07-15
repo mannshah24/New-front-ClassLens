@@ -199,7 +199,8 @@ class ApiServices {
   }
 
   static Future<bool> setPassword({
-    required final String email,
+    String? email,
+    int? prn,
     required final String password,
   }) async {
     String endpoint = "$_baseUrl/setPassword/";
@@ -207,13 +208,17 @@ class ApiServices {
 
     const headers = {'Content-Type': 'application/json; charset=UTF-8'};
 
-    final body = jsonEncode({'email': email, 'password': password});
+    final body = jsonEncode({
+      if (email != null) 'email': email,
+      if (prn != null) 'prn': prn,
+      'password': password,
+    });
 
     try {
       final response = await http.post(url, headers: headers, body: body);
 
       if (response.statusCode == 200) {
-        print("otp verified");
+        print("password set successfully");
         return Future.value(true);
       } else {
         return Future.value(false);
@@ -221,6 +226,94 @@ class ApiServices {
     } catch (e) {
       print(e.toString());
       return Future.value(false);
+    }
+  }
+
+  static Future<Map<String, dynamic>> forgotPasswordSendOtp({
+    String? email,
+    int? prn,
+  }) async {
+    String endpoint = "$_baseUrl/forgotPassword/sendOtp/";
+    final url = Uri.parse(endpoint);
+
+    try {
+      const headers = {'Content-Type': 'application/json; charset=UTF-8'};
+      final body = jsonEncode({
+        if (email != null) "email": email,
+        if (prn != null) "prn": prn,
+      });
+
+      final response = await http.post(url, headers: headers, body: body);
+      Map<String, dynamic> responseData = {};
+      try {
+        responseData = jsonDecode(response.body);
+      } catch (_) {}
+
+      if (response.statusCode == 200) {
+        return {
+          "success": true,
+          "email": responseData["email"] ?? email,
+          "cooldown_seconds": responseData["cooldown_seconds"] ?? 60,
+          "message": responseData["message"] ?? "OTP sent successfully"
+        };
+      } else {
+        return {
+          "success": false,
+          "cooldown_seconds": responseData["cooldown_seconds"] ?? 60,
+          "message": responseData["detail"] ?? responseData["message"] ?? "Failed to send OTP"
+        };
+      }
+    } catch (e) {
+      print(e.toString());
+      return {
+        "success": false,
+        "cooldown_seconds": 60,
+        "message": "Could not connect to the server."
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> forgotPasswordVerifyOtp({
+    String? email,
+    int? prn,
+    required final int otp,
+  }) async {
+    String endpoint = "$_baseUrl/forgotPassword/verifyOtp/";
+    final url = Uri.parse(endpoint);
+
+    try {
+      const headers = {'Content-Type': 'application/json; charset=UTF-8'};
+      final body = jsonEncode({
+        if (email != null) "email": email,
+        if (prn != null) "prn": prn,
+        "otp": otp,
+      });
+
+      final response = await http.post(url, headers: headers, body: body);
+      Map<String, dynamic> responseData = {};
+      try {
+        responseData = jsonDecode(response.body);
+      } catch (_) {}
+
+      if (response.statusCode == 200) {
+        return {
+          "success": true,
+          "email": responseData["email"] ?? email,
+          "prn": responseData["prn"],
+          "message": responseData["message"] ?? "OTP verified successfully"
+        };
+      } else {
+        return {
+          "success": false,
+          "message": responseData["detail"] ?? responseData["message"] ?? "Invalid or expired OTP"
+        };
+      }
+    } catch (e) {
+      print(e.toString());
+      return {
+        "success": false,
+        "message": "Could not connect to the server."
+      };
     }
   }
 

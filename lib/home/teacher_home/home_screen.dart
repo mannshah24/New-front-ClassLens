@@ -282,8 +282,10 @@ class _HomeState extends ConsumerState<Home> {
                 await sessionsBox.clear();
 
                 print("Cleared all user-specific Hive boxes.");
-                Navigator.of(context).pop();
-                Navigator.push(context, MaterialPageRoute(builder: (context)=>const LoginSelector()));
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => const LoginSelector()),
+                  (route) => false,
+                );
               },
             ),
           ],

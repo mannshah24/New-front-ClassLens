@@ -104,3 +104,7 @@ android/build/reports/
 # Flutter/Dart generated
 .dart_tool/
 build/
+
+# Local Android cacerts
+/android/cacerts
+

@@ -361,13 +361,7 @@ class _StudentProfileTabState extends State<StudentProfileTab> {
                           MaterialPageRoute(
                             builder: (context) => StudentFaceUpdateScreen(prn: prn),
                           ),
-                        ).then((updated) {
-                          if (updated == true && mounted) {
-                            setState(() {
-                              _profileFuture = _loadProfileData();
-                            });
-                          }
-                        });
+                        );
                       },
               ),
             ),

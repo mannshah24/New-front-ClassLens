@@ -86,6 +86,9 @@ class _HomeState extends ConsumerState<Home> {
   void initState(){
     super.initState();
     requestNotificationPermissions();
+    if (widget.teacherID > 0) {
+      registerTeacherFCMToken(widget.teacherID);
+    }
     _displayTeacherName = widget.teacherName ?? userName;
     _loadTeacherProfileName();
     _checkHolidayStatus();

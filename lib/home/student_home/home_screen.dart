@@ -9,7 +9,6 @@ import 'student_dashboard.dart';
 import 'student_schedule.dart';
 import 'attendance_history.dart';
 import 'student_profile.dart';
-import 'student_notifications_screen.dart';
 
 class StudentHomeScreen extends StatefulWidget {
   const StudentHomeScreen({super.key});
@@ -26,22 +25,10 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   String _studentPrn = '';
   int _studentId = 0;
 
-  int _unreadNotificationCount = 0;
-
   @override
   void initState() {
     super.initState();
     _loadUserData();
-    _loadUnreadCount();
-  }
-
-  Future<void> _loadUnreadCount() async {
-    final count = await getUnreadStudentNotificationsCount();
-    if (mounted) {
-      setState(() {
-        _unreadNotificationCount = count;
-      });
-    }
   }
 
   Future<void> _loadUserData() async {
@@ -68,7 +55,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         _isLoading = false;
       });
     }
-    await _loadUnreadCount();
   }
 
   void _onItemTapped(int index) {

@@ -24,30 +24,6 @@ bool _localNotificationsInitialized = false;
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  
-  final title = message.notification?.title ?? message.data['title']?.toString() ?? message.data['notification_title']?.toString();
-  final body = message.notification?.body ?? message.data['body']?.toString() ?? message.data['notification_body']?.toString();
-  if (title != null || body != null) {
-    try {
-      final pref = await SharedPreferences.getInstance();
-      final userType = pref.getString("userType");
-      if (userType == "student") {
-        try {
-          await Hive.initFlutter();
-        } catch (_) {}
-        final box = await Hive.openBox('student_notifications_box');
-        await box.add({
-          'title': title ?? '',
-          'body': body ?? '',
-          'timestamp': DateTime.now().toIso8601String(),
-          'isRead': false,
-        });
-      }
-    } catch (e) {
-      print("Error saving background notification: $e");
-    }
-  }
-
   await _initializeLocalNotifications();
   await _showMessageNotification(message, dataOnly: true);
   print("Handling background message: ${message.messageId}");
@@ -309,15 +285,6 @@ Future<void> _showMessageNotification(
   if ((title == null || title.trim().isEmpty) &&
       (body == null || body.trim().isEmpty)) {
     return;
-  }
-
-  try {
-    final userType = await getUserType();
-    if (userType == "student") {
-      await saveStudentNotification(title ?? '', body ?? '');
-    }
-  } catch (e) {
-    print("Error saving student notification in foreground: $e");
   }
 
   await showLocalNotification(title: title, body: body);

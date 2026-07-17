@@ -198,10 +198,11 @@ class ApiServices {
     }
   }
 
-  static Future<bool> setPassword({
+  static Future<Map<String, dynamic>> setPassword({
     String? email,
     int? prn,
     required final String password,
+    String? token,
   }) async {
     String endpoint = "$_baseUrl/setPassword/";
     final url = Uri.parse(endpoint);
@@ -212,20 +213,34 @@ class ApiServices {
       if (email != null) 'email': email,
       if (prn != null) 'prn': prn,
       'password': password,
+      if (token != null) 'token': token,
     });
 
     try {
       final response = await http.post(url, headers: headers, body: body);
+      Map<String, dynamic> responseData = {};
+      try {
+        responseData = jsonDecode(response.body);
+      } catch (_) {}
 
       if (response.statusCode == 200) {
         print("password set successfully");
-        return Future.value(true);
+        return {
+          "success": true,
+          "message": responseData["message"] ?? "Password set successfully"
+        };
       } else {
-        return Future.value(false);
+        return {
+          "success": false,
+          "message": responseData["detail"] ?? responseData["message"] ?? "Failed to set password"
+        };
       }
     } catch (e) {
       print(e.toString());
-      return Future.value(false);
+      return {
+        "success": false,
+        "message": "Could not connect to the server."
+      };
     }
   }
 
@@ -300,6 +315,7 @@ class ApiServices {
           "success": true,
           "email": responseData["email"] ?? email,
           "prn": responseData["prn"],
+          "token": responseData["token"],
           "message": responseData["message"] ?? "OTP verified successfully"
         };
       } else {

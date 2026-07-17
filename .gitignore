@@ -108,3 +108,8 @@ build/
 # Local Android cacerts
 /android/cacerts
 
+# Platform-specific generated plugin files
+**/generated_plugin_registrant.cc
+**/generated_plugin_registrant.h
+**/generated_plugins.cmake
+**/GeneratedPluginRegistrant.swift

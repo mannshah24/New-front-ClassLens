@@ -16,7 +16,8 @@ const Color circleColor2 = Color.fromARGB(255, 201, 247, 222);
 
 class TeacherPasswordSetter extends StatefulWidget {
   final String email;
-  const TeacherPasswordSetter({super.key, required this.email});
+  final String? token;
+  const TeacherPasswordSetter({super.key, required this.email, this.token});
 
   @override
   State<TeacherPasswordSetter> createState() => _TeacherPasswordSetterState();
@@ -49,9 +50,13 @@ class _TeacherPasswordSetterState extends State<TeacherPasswordSetter> {
       setState(() {
         _isLoading=true;
       });
-      bool response = await ApiServices.setPassword(email: widget.email, password: _teacherPasswordController.text);
+      final response = await ApiServices.setPassword(
+        email: widget.email,
+        password: _teacherPasswordController.text,
+        token: widget.token,
+      );
 
-      if (response && mounted) {
+      if (response["success"] == true && mounted) {
 
         Navigator.of(context).popUntil((route) => route.isFirst);
         navigatorWithAnimation(
@@ -63,6 +68,13 @@ class _TeacherPasswordSetterState extends State<TeacherPasswordSetter> {
         );
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Password set successfully!"), backgroundColor: Colors.green),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(response["message"] ?? "Failed to set password. Please try again."),
+            backgroundColor: Colors.red,
+          ),
         );
       }
       setState(() {

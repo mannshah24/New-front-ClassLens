@@ -19,6 +19,8 @@ const String _keyStudentID = "studentID";
 const String _keyStudentPRN = "studentPRN";
 const String _keyStudentAccessToken = "studentAccessToken";
 
+bool _isFCMTokenRefreshListenerStarted = false;
+
 Future<bool> getRememberMe() async {
   final pref = await SharedPreferences.getInstance();
   return pref.getBool(_keyRememberMe) ?? false;
@@ -182,8 +184,121 @@ Future<void> registerTeacherFCMToken(int teacherId) async {
   }
 }
 
+void startFCMTokenRefreshListener() {
+  if (_isFCMTokenRefreshListenerStarted ||
+      kIsWeb ||
+      (!Platform.isAndroid && !Platform.isIOS)) {
+    return;
+  }
+
+  _isFCMTokenRefreshListenerStarted = true;
+  FirebaseMessaging.instance.onTokenRefresh.listen((token) async {
+    final userType = await getUserType();
+
+    if (userType == "student") {
+      final studentId = await getStudentID();
+      if (studentId > 0) {
+        await ApiServices.updateNotificationToken(
+          studentId: studentId,
+          notificationToken: token,
+        );
+      }
+    } else if (userType == "teacher") {
+      final teacherId = await getUserID();
+      if (teacherId != null && teacherId > 0) {
+        await ApiServices.updateTeacherNotificationToken(
+          teacherId: teacherId,
+          notificationToken: token,
+        );
+      }
+    }
+  }, onError: (Object error) {
+    print("FCM token refresh listener error: $error");
+  });
+}
+
 Future<void> unregisterTeacherFCMToken(int teacherId) async {
   if (teacherId > 0 && !kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
     await ApiServices.removeTeacherNotificationToken(teacherId: teacherId);
+  }
+}
+
+// Student notification storage helpers using a simple Hive box
+Future<void> saveStudentNotification(String title, String body) async {
+  try {
+    final box = await Hive.openBox('student_notifications_box');
+    final item = {
+      'title': title,
+      'body': body,
+      'timestamp': DateTime.now().toIso8601String(),
+      'isRead': false,
+    };
+    await box.add(item);
+    print("Saved student notification: $item");
+  } catch (e) {
+    print("Error saving student notification: $e");
+  }
+}
+
+Future<List<Map<dynamic, dynamic>>> getStudentNotifications() async {
+  try {
+    final box = await Hive.openBox('student_notifications_box');
+    final List<Map<dynamic, dynamic>> list = [];
+    for (int i = 0; i < box.length; i++) {
+      final value = box.getAt(i);
+      if (value is Map) {
+        // Create a mutable copy of the map so we can change 'isRead' locally if needed,
+        // or just keep it as is.
+        final map = Map<dynamic, dynamic>.from(value);
+        list.add(map);
+      }
+    }
+    return list;
+  } catch (e) {
+    print("Error getting student notifications: $e");
+    return [];
+  }
+}
+
+Future<void> markAllStudentNotificationsAsRead() async {
+  try {
+    final box = await Hive.openBox('student_notifications_box');
+    for (int i = 0; i < box.length; i++) {
+      final value = box.getAt(i);
+      if (value is Map) {
+        final map = Map<dynamic, dynamic>.from(value);
+        if (map['isRead'] == false) {
+          map['isRead'] = true;
+          await box.putAt(i, map);
+        }
+      }
+    }
+  } catch (e) {
+    print("Error marking notifications as read: $e");
+  }
+}
+
+Future<void> clearStudentNotifications() async {
+  try {
+    final box = await Hive.openBox('student_notifications_box');
+    await box.clear();
+  } catch (e) {
+    print("Error clearing notifications: $e");
+  }
+}
+
+Future<int> getUnreadStudentNotificationsCount() async {
+  try {
+    final box = await Hive.openBox('student_notifications_box');
+    int count = 0;
+    for (var value in box.values) {
+      if (value is Map && value['isRead'] == false) {
+        count++;
+      }
+    }
+    return count;
+  } catch (e) {
+    print("Error getting unread notifications count: $e");
+    return 0;
   }
 }

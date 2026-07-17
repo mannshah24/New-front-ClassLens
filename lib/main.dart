@@ -11,6 +11,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'dart:io' show Platform;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 
 import 'splash_screen.dart';
@@ -18,9 +19,37 @@ import 'splash_screen.dart';
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
+bool _localNotificationsInitialized = false;
+
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  
+  final title = message.notification?.title ?? message.data['title']?.toString() ?? message.data['notification_title']?.toString();
+  final body = message.notification?.body ?? message.data['body']?.toString() ?? message.data['notification_body']?.toString();
+  if (title != null || body != null) {
+    try {
+      final pref = await SharedPreferences.getInstance();
+      final userType = pref.getString("userType");
+      if (userType == "student") {
+        try {
+          await Hive.initFlutter();
+        } catch (_) {}
+        final box = await Hive.openBox('student_notifications_box');
+        await box.add({
+          'title': title ?? '',
+          'body': body ?? '',
+          'timestamp': DateTime.now().toIso8601String(),
+          'isRead': false,
+        });
+      }
+    } catch (e) {
+      print("Error saving background notification: $e");
+    }
+  }
+
+  await _initializeLocalNotifications();
+  await _showMessageNotification(message, dataOnly: true);
   print("Handling background message: ${message.messageId}");
   try {
     final type = message.data['type'] ?? '';
@@ -64,7 +93,9 @@ void main() async {
       await dotenv.load(fileName: ".env.dev");
     }
   } catch (e) {
-    debugPrint("Note: DotEnv failed to load: $e. Using environment compilation/defaults.");
+    debugPrint(
+      "Note: DotEnv failed to load: $e. Using environment compilation/defaults.",
+    );
   }
 
   if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
@@ -73,14 +104,10 @@ void main() async {
         options: DefaultFirebaseOptions.currentPlatform,
       );
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-      
+      startFCMTokenRefreshListener();
+
       FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-        if (message.notification != null) {
-          showLocalNotification(
-            title: message.notification!.title,
-            body: message.notification!.body,
-          );
-        }
+        _showMessageNotification(message);
         try {
           final type = message.data['type'] ?? '';
           if (type == 'attendance') {
@@ -164,6 +191,20 @@ void main() async {
 
   clearExpiredNotification();
 
+  await _initializeLocalNotifications();
+
+  userName = await getUserName();
+  final savedID = await getUserID();
+  userID = savedID ?? 0;
+
+  runApp(ProviderScope(child: MyApp()));
+}
+
+Future<void> _initializeLocalNotifications() async {
+  if (_localNotificationsInitialized) {
+    return;
+  }
+
   const AndroidInitializationSettings initializationSettingsAndroid =
       AndroidInitializationSettings("app_icon");
   const WindowsInitializationSettings initializationSettingsWindows =
@@ -195,11 +236,7 @@ void main() async {
         ?.createNotificationChannel(channel);
   }
 
-  userName = await getUserName();
-  final savedID = await getUserID();
-  userID = savedID??0;
-
-  runApp(ProviderScope(child: MyApp()));
+  _localNotificationsInitialized = true;
 }
 
 void clearExpiredNotification() {
@@ -220,7 +257,9 @@ void clearExpiredNotification() {
 }
 
 // Show local notification when app is in foreground.
-void showLocalNotification({String? title, String? body}) async {
+Future<void> showLocalNotification({String? title, String? body}) async {
+  await _initializeLocalNotifications();
+
   const AndroidNotificationDetails androidPlatformChannelSpecifics =
       AndroidNotificationDetails(
         'attendance_channel',
@@ -243,8 +282,48 @@ void showLocalNotification({String? title, String? body}) async {
   );
 }
 
-class MyApp extends StatelessWidget {
+String? _messageTitle(RemoteMessage message) {
+  return message.notification?.title ??
+      message.data['title']?.toString() ??
+      message.data['notification_title']?.toString();
+}
 
+String? _messageBody(RemoteMessage message) {
+  return message.notification?.body ??
+      message.data['body']?.toString() ??
+      message.data['message']?.toString() ??
+      message.data['notification_body']?.toString();
+}
+
+Future<void> _showMessageNotification(
+  RemoteMessage message, {
+  bool dataOnly = false,
+}) async {
+  if (dataOnly && message.notification != null) {
+    return;
+  }
+
+  final title = _messageTitle(message);
+  final body = _messageBody(message);
+
+  if ((title == null || title.trim().isEmpty) &&
+      (body == null || body.trim().isEmpty)) {
+    return;
+  }
+
+  try {
+    final userType = await getUserType();
+    if (userType == "student") {
+      await saveStudentNotification(title ?? '', body ?? '');
+    }
+  } catch (e) {
+    print("Error saving student notification in foreground: $e");
+  }
+
+  await showLocalNotification(title: title, body: body);
+}
+
+class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(

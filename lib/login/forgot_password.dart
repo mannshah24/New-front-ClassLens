@@ -157,6 +157,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     if (result['success']) {
       final verifiedEmail = result['email'] ?? _sentToEmail;
+      final String? token = result['token'];
       if (widget.isStudent) {
         final verifiedPrn = result['prn'] ?? prn;
         Navigator.of(context).pop(); // Go back from forgot password screen
@@ -166,6 +167,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             email: verifiedEmail,
             prn: verifiedPrn!,
             isForgotPassword: true,
+            token: token,
           ),
         );
       } else {
@@ -174,6 +176,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           context,
           TeacherPasswordSetter(
             email: verifiedEmail,
+            token: token,
           ),
         );
       }

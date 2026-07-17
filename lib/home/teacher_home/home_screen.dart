@@ -383,11 +383,6 @@ class _HomeState extends ConsumerState<Home> {
       },
       child: Scaffold(
         backgroundColor: primaryBackgroundColor,
-        floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            ref.read(taskManagerProvider.notifier).deleteAllNotification();
-          }
-        ),
 
         body: Stack(
           fit: StackFit.expand,

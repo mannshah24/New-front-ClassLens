@@ -19,11 +19,13 @@ class StudentPasswordSetter extends StatefulWidget {
   final String email;
   final int prn;
   final bool isForgotPassword;
+  final String? token;
   const StudentPasswordSetter({
     super.key,
     required this.email,
     required this.prn,
     this.isForgotPassword = false,
+    this.token,
   });
 
   @override
@@ -64,11 +66,12 @@ class _StudentPasswordSetterState extends State<StudentPasswordSetter> {
 
       try {
         if (widget.isForgotPassword) {
-          bool response = await ApiServices.setPassword(
+          final response = await ApiServices.setPassword(
             prn: widget.prn,
             password: _studentPasswordController.text,
+            token: widget.token,
           );
-          if (response && mounted) {
+          if (response["success"] == true && mounted) {
             Navigator.of(context).popUntil((route) => route.isFirst);
             navigatorWithAnimation(
               context,
@@ -82,8 +85,8 @@ class _StudentPasswordSetterState extends State<StudentPasswordSetter> {
             );
           } else if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Failed to reset password. Please try again."),
+              SnackBar(
+                content: Text(response["message"] ?? "Failed to reset password. Please try again."),
                 backgroundColor: Colors.red,
               ),
             );

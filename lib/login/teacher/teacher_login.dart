@@ -334,7 +334,8 @@ class _LoginPageState extends State<Login> {
           saveTeacherSession(
               rememberMe: isChecked,
               teacherName: result['teacherName'],
-              teacherID: result['teacherID']
+              teacherID: result['teacherID'],
+              token: result['token']
           );
 
           await registerTeacherFCMToken(result['teacherID']);

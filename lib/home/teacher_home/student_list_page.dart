@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:classlens/data_models/teacher_subjects.dart';
 import 'package:lottie/lottie.dart';
 import '../../api/api.dart';
+import 'package:classlens/global/global.dart';
+import 'package:classlens/api/attendance_export_service.dart';
 
 
 const Color primaryTextColor = Color(0xFF1A2533);
@@ -32,6 +34,7 @@ class _StudentListPageState extends State<StudentListPage> {
   List<StudentList> _allStudents = [];
   List<StudentList> _filteredStudents = [];
   final TextEditingController _searchController = TextEditingController();
+  bool _isExporting = false;
 
   @override
   void initState() {
@@ -119,6 +122,34 @@ class _StudentListPageState extends State<StudentListPage> {
     );
   }
 
+  _handleExport() async {
+    setState(() => _isExporting = true);
+    try {
+      await AttendanceExportService().downloadReport(widget.subject.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Exported successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isExporting = false);
+      }
+    }
+  }
+
   Widget _buildBlurredAppBar(BuildContext context) {
 
     final topPadding = MediaQuery.of(context).padding.top;
@@ -155,6 +186,16 @@ class _StudentListPageState extends State<StudentListPage> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                _isExporting
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: primaryTextColor),
+                    )
+                  : IconButton(
+                      icon: const Icon(Icons.download, color: primaryTextColor),
+                      onPressed: _handleExport,
+                    ),
               ],
             ),
           ),

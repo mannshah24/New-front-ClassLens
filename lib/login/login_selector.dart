@@ -6,6 +6,7 @@ import 'package:classlens/global/global.dart';
 import 'package:classlens/home/student_home/home_screen.dart';
 import 'package:classlens/home/teacher_home/home_screen.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 
 const Color primaryBackgroundColor = Color(0xFFF0F4F8);
@@ -84,6 +85,45 @@ class _LoginSelectorState extends State<LoginSelector> {
       setState(() {
         _isCheckingSession = false;
       });
+    }
+  }
+
+  Future<void> _contactSupport() async {
+    String encodeQueryParameters(Map<String, String> params) {
+      return params.entries
+          .map((MapEntry<String, String> e) =>
+              '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
+          .join('&');
+    }
+
+    final Uri emailUri = Uri(
+      scheme: 'mailto',
+      path: 'classlens.msu@gmail.com',
+      query: encodeQueryParameters(<String, String>{
+        'subject': 'Support Request - ClassLens',
+      }),
+    );
+
+    try {
+      if (await canLaunchUrl(emailUri)) {
+        await launchUrl(emailUri);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not open email client. Please email classlens.msu@gmail.com'),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error launching email client: $e. Please email classlens.msu@gmail.com'),
+          ),
+        );
+      }
     }
   }
 
@@ -185,7 +225,7 @@ class _LoginSelectorState extends State<LoginSelector> {
                   // --- Footer ---
                   FittedBox(
                     child: TextButton(
-                      onPressed: () {},
+                      onPressed: _contactSupport,
                       child: const Text(
                         "Need help? Contact support",
                         style: TextStyle(

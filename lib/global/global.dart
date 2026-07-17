@@ -18,6 +18,7 @@ const String _keyStudentName = "studentName";
 const String _keyStudentID = "studentID";
 const String _keyStudentPRN = "studentPRN";
 const String _keyStudentAccessToken = "studentAccessToken";
+const String _keyTeacherAccessToken = "teacherAccessToken";
 
 Future<bool> getRememberMe() async {
   final pref = await SharedPreferences.getInstance();
@@ -48,15 +49,26 @@ Future<void> saveTeacherSession({
   required bool rememberMe,
   required String teacherName,
   required int teacherID,
+  String? token,
 }) async {
   final pref = await SharedPreferences.getInstance();
   await pref.setBool(_keyRememberMe, rememberMe);
   await pref.setString(_keyUserType, "teacher");
   await pref.setString(_keyTeacherName, teacherName);
   await pref.setInt(_keyTeacherID, teacherID);
+  if (token != null && token.trim().isNotEmpty) {
+    await pref.setString(_keyTeacherAccessToken, token.trim());
+  } else {
+    await pref.remove(_keyTeacherAccessToken);
+  }
 
   userName = teacherName;
   userID = teacherID;
+}
+
+Future<String> getTeacherAccessToken() async {
+  final pref = await SharedPreferences.getInstance();
+  return pref.getString(_keyTeacherAccessToken) ?? "";
 }
 
 Future<String> getStudentName() async {

@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // Firebase support is disabled for the desktop build so the Windows app can
 // link and run without the native Firebase C++ SDK.
@@ -20,27 +21,27 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyCSO5SXSZCF2StCMdsxQnd7vZgXb_yd2YM',
-    appId: '1:548993477348:web:c8c729e587fe0e12b51af1',
-    messagingSenderId: '548993477348',
-    projectId: 'claens-f7490',
-    authDomain: 'claens-f7490.firebaseapp.com',
+  static FirebaseOptions get web => FirebaseOptions(
+    apiKey: dotenv.env['FIREBASE_API_KEY'] ?? '',
+    appId: '1:475989075398:web:c8c729e587fe0e12b51af1',
+    messagingSenderId: '475989075398',
+    projectId: 'claens-5a3e5',
+    authDomain: 'claens-5a3e5.firebaseapp.com',
   );
 
-  static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyCSO5SXSZCF2StCMdsxQnd7vZgXb_yd2YM',
-    appId: '1:548993477348:android:946ceea916948bb2b51af1',
-    messagingSenderId: '548993477348',
-    projectId: 'claens-f7490',
-    storageBucket: 'claens-f7490.appspot.com',
+  static FirebaseOptions get android => FirebaseOptions(
+    apiKey: dotenv.env['FIREBASE_API_KEY'] ?? '',
+    appId: '1:475989075398:android:6bee282c535238afffbec7',
+    messagingSenderId: '475989075398',
+    projectId: 'claens-5a3e5',
+    storageBucket: 'claens-5a3e5.firebasestorage.app',
   );
 
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCSO5SXSZCF2StCMdsxQnd7vZgXb_yd2YM',
-    appId: '1:548993477348:ios:7d56ef152162c8fdb51af1',
-    messagingSenderId: '548993477348',
-    projectId: 'claens-f7490',
-    storageBucket: 'claens-f7490.appspot.com',
+  static FirebaseOptions get ios => FirebaseOptions(
+    apiKey: dotenv.env['FIREBASE_API_KEY'] ?? '',
+    appId: '1:475989075398:ios:7d56ef152162c8fdb51af1',
+    messagingSenderId: '475989075398',
+    projectId: 'claens-5a3e5',
+    storageBucket: 'claens-5a3e5.firebasestorage.app',
   );
 }

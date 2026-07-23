@@ -1,6 +1,9 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:classlens/global/global.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:classlens/data_models/student_notification.dart';
+import 'student_notifications_screen.dart';
 import 'student_colors.dart';
 import 'student_dashboard.dart';
 import 'student_schedule.dart';
@@ -32,6 +35,10 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     final studentName = await getStudentName();
     final studentId = await getStudentID();
     final prn = await getStudentPRN();
+
+    if (studentId > 0) {
+      await registerFCMToken(studentId);
+    }
 
     if (mounted) {
       setState(() {
@@ -116,13 +123,59 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.5),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.notifications_outlined, color: primaryTextColor),
+                    ValueListenableBuilder<Box<StudentNotification>>(
+                      valueListenable: Hive.box<StudentNotification>('student_notifications').listenable(),
+                      builder: (context, box, _) {
+                        final unreadCount = box.values.where((n) => !n.isRead).length;
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const StudentNotificationsScreen(),
+                              ),
+                            );
+                          },
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.5),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.notifications_outlined, color: primaryTextColor),
+                              ),
+                              if (unreadCount > 0)
+                                Positioned(
+                                  right: -2,
+                                  top: -2,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 16,
+                                      minHeight: 16,
+                                    ),
+                                    child: Text(
+                                      unreadCount.toString(),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(width: 12),
                     GestureDetector(

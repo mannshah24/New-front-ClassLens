@@ -20,6 +20,8 @@ const String _keyStudentPRN = "studentPRN";
 const String _keyStudentAccessToken = "studentAccessToken";
 const String _keyTeacherAccessToken = "teacherAccessToken";
 
+bool _isFCMTokenRefreshListenerStarted = false;
+
 Future<bool> getRememberMe() async {
   final pref = await SharedPreferences.getInstance();
   return pref.getBool(_keyRememberMe) ?? false;
@@ -112,26 +114,55 @@ Future<String> getStudentAccessToken() async {
   return pref.getString(_keyStudentAccessToken) ?? "";
 }
 
+// Future<String?> _getFCMToken() async {
+//   if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) {
+//     return null;
+//   }
+//   try {
+//     PermissionStatus status = await Permission.notification.request();
+//     if (status.isGranted) {
+//       await FirebaseMessaging.instance.requestPermission(
+//         alert: true,
+//         sound: true,
+//         badge: true,
+//       );
+//       return await FirebaseMessaging.instance.getToken();
+//     } else {
+//       print("Notification permission is not granted: $status");
+//     }
+//   } catch (e) {
+//     print("Error fetching FCM token: $e");
+//   }
+//   return null;
+// }
 Future<String?> _getFCMToken() async {
   if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) {
     return null;
   }
+
   try {
-    PermissionStatus status = await Permission.notification.request();
-    if (status.isGranted) {
-      await FirebaseMessaging.instance.requestPermission(
-        alert: true,
-        sound: true,
-        badge: true,
-      );
-      return await FirebaseMessaging.instance.getToken();
-    } else {
-      print("Notification permission is not granted: $status");
-    }
+    NotificationSettings settings =
+        await FirebaseMessaging.instance.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    print("Notification permission: ${settings.authorizationStatus}");
+
+    String? token = await FirebaseMessaging.instance.getToken();
+
+    print("FCM TOKEN = $token");
+
+    FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
+      print("FCM TOKEN REFRESHED = $newToken");
+    });
+
+    return token;
   } catch (e) {
-    print("Error fetching FCM token: $e");
+    print("FCM TOKEN ERROR: $e");
+    return null;
   }
-  return null;
 }
 
 Future<void> registerFCMToken(int studentId) async {
@@ -165,8 +196,43 @@ Future<void> registerTeacherFCMToken(int teacherId) async {
   }
 }
 
+void startFCMTokenRefreshListener() {
+  if (_isFCMTokenRefreshListenerStarted ||
+      kIsWeb ||
+      (!Platform.isAndroid && !Platform.isIOS)) {
+    return;
+  }
+
+  _isFCMTokenRefreshListenerStarted = true;
+  FirebaseMessaging.instance.onTokenRefresh.listen((token) async {
+    final userType = await getUserType();
+
+    if (userType == "student") {
+      final studentId = await getStudentID();
+      if (studentId > 0) {
+        await ApiServices.updateNotificationToken(
+          studentId: studentId,
+          notificationToken: token,
+        );
+      }
+    } else if (userType == "teacher") {
+      final teacherId = await getUserID();
+      if (teacherId != null && teacherId > 0) {
+        await ApiServices.updateTeacherNotificationToken(
+          teacherId: teacherId,
+          notificationToken: token,
+        );
+      }
+    }
+  }, onError: (Object error) {
+    print("FCM token refresh listener error: $error");
+  });
+}
+
 Future<void> unregisterTeacherFCMToken(int teacherId) async {
   if (teacherId > 0 && !kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
     await ApiServices.removeTeacherNotificationToken(teacherId: teacherId);
   }
 }
+
+// End of global.dart

@@ -19,6 +19,7 @@ packages:
     version: "1.3.59"
   analyzer:
     dependency: "direct overridden"
+    dependency: "direct overridden"
     description:
       name: analyzer
       sha256: "37577842a27e4338429a1cbc32679d508836510b056f1eedf0c8d20e39c1383d"
@@ -1214,10 +1215,10 @@ packages:
     dependency: "direct overridden"
     description:
       name: test_api
-      sha256: "949a932224383300f01be9221c39180316445ecb8e7547f70a41a35bf421fb9e"
+      sha256: ab2726c1a94d3176a45960b6234466ec367179b87dd74f1611adb1f3b5fb9d55
       url: "https://pub.dev"
     source: hosted
-    version: "0.7.11"
+    version: "0.7.7"
   timeago:
     dependency: "direct main"
     description:
@@ -1262,10 +1263,10 @@ packages:
     dependency: transitive
     description:
       name: url_launcher_android
-      sha256: "17bc677f0b301615530dd1d67e0a9828cafa2d0b6b6eae4cd3679b7eac4a273c"
+      sha256: b413d49b73867ac08dd2f9890efd3cc11f2a0e577618d50843440a1fb3776c32
       url: "https://pub.dev"
     source: hosted
-    version: "6.3.30"
+    version: "6.3.32"
   url_launcher_ios:
     dependency: transitive
     description:
@@ -1387,5 +1388,5 @@ packages:
     source: hosted
     version: "3.1.3"
 sdks:
-  dart: ">=3.10.3 <4.0.0"
-  flutter: ">=3.38.4"
+  dart: ">=3.12.0 <4.0.0"
+  flutter: ">=3.44.0"

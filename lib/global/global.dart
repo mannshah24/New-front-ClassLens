@@ -137,6 +137,7 @@ Future<String?> _getFCMToken() async {
 Future<void> registerFCMToken(int studentId) async {
   final token = await _getFCMToken();
   if (token != null) {
+    print("Registered FCM Token for student $studentId: $token");
     await ApiServices.updateNotificationToken(
       studentId: studentId,
       notificationToken: token,
@@ -156,6 +157,7 @@ Future<void> unregisterFCMToken() async {
 Future<void> registerTeacherFCMToken(int teacherId) async {
   final token = await _getFCMToken();
   if (token != null) {
+    print("Registered FCM Token for teacher $teacherId: $token");
     await ApiServices.updateTeacherNotificationToken(
       teacherId: teacherId,
       notificationToken: token,

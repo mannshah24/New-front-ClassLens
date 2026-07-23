@@ -172,11 +172,10 @@ class TaskManagerNotifier extends Notifier<List<UserTask>> {
       if (subject is String) {
         subjectName = subject;
       }
-      
-      showLocalNotification(
-        title: "Attendance Processed - $subject",
-        body: "Attendance processing completed successfully. Present: $presentCount, Absent: $absentCount.",
-      );
+
+      // NOTE: No local notification here — the backend sends an FCM push directly
+      // to the teacher device when attendance is processed. Calling showLocalNotification()
+      // here would produce a duplicate (one from FCM + one from polling).
 
       if (classSessionID is int && presentCount is int && absentCount is int) {
         if (!classSessionBox.containsKey(classSessionID)) {
@@ -199,10 +198,9 @@ class TaskManagerNotifier extends Notifier<List<UserTask>> {
         }
       }
     } else if (cleanStatus == 'FAILURE' || cleanStatus == 'error') {
-      showLocalNotification(
-        title: "Attendance Failed",
-        body: "Attendance processing failed. Please try resubmitting.",
-      );
+      // NOTE: No local notification here — the backend handles failure notifications
+      // via FCM push as well. The in-app notification badge/tray is updated below.
+      print("updateTaskStatus ($taskID): Task FAILED. Backend FCM push handles teacher notification.");
     }
 
     state = [

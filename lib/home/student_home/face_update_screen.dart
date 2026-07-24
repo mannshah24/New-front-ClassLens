@@ -35,7 +35,11 @@ class _StudentFaceUpdateScreenState extends State<StudentFaceUpdateScreen> {
 
   Future<void> _pickImageFromCamera() async {
     try {
-      final pickedFile = await _picker.pickImage(source: ImageSource.camera, imageQuality: 80);
+      final pickedFile = await _picker.pickImage(
+        source: ImageSource.camera,
+        preferredCameraDevice: CameraDevice.front,
+        imageQuality: 80,
+        );
 
       if (!mounted) return;
 

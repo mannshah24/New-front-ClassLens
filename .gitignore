@@ -113,3 +113,7 @@ build/
 **/generated_plugin_registrant.h
 **/generated_plugins.cmake
 **/GeneratedPluginRegistrant.swift
+
+# Local Firebase configuration (each developer uses their own Firebase project locally)
+firebase.json
+lib/firebase_options.dart

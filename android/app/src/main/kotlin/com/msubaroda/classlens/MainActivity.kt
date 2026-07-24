@@ -1,4 +1,4 @@
-package com.example.classlens
+package com.msubaroda.classlens
 
 import io.flutter.embedding.android.FlutterActivity
 
